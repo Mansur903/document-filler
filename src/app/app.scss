@@ -2,8 +2,36 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-}
 
-.app-shell {
-  text-align: center;
+  .app-shell {
+    display: grid;
+    gap: 1rem;
+    justify-items: center;
+    max-width: 48rem;
+    padding: 2rem;
+    text-align: center;
+
+    &__error {
+      color: var(--tmt-color-danger);
+    }
+
+    &__preview {
+      display: grid;
+      gap: 0.75rem;
+      justify-items: center;
+
+      img {
+        border: 1px solid var(--tmt-color-border);
+        border-radius: 0.5rem;
+        max-height: 28rem;
+        max-width: min(100%, 42rem);
+        object-fit: contain;
+      }
+    }
+
+    &__file-name {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  }
 }

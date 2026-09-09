@@ -1,4 +1,26 @@
 <main class="app-shell">
   <h1>Document Filler</h1>
-  <p>Desktop application is running.</p>
+  <p>Select a JPG image of a passport to preview it.</p>
+
+  <button type="button" [disabled]="isSelecting()" (click)="onSelectImage()">
+    @if (isSelecting()) {
+      Opening picker...
+    } @else if (selectedImage()) {
+      Select another image
+    } @else {
+      Select passport image
+    }
+  </button>
+
+  @if (selectionError(); as error) {
+    <p class="app-shell__error" role="alert">{{ error }}</p>
+  }
+
+  @if (selectedImage(); as image) {
+    <section class="app-shell__preview" aria-labelledby="selected-image-title">
+      <h2 id="selected-image-title">Selected image</h2>
+      <p class="app-shell__file-name">{{ image.name }}</p>
+      <img [src]="image.dataUrl" [alt]="'Preview of ' + image.name" />
+    </section>
+  }
 </main>
