@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import type { PassportData } from './models/api.model';
+import type { PassportData } from '../models/api.model';
 
 const OCR_RESULT_PREFIX = 'OCR_RESULT:';
 const OCR_TIMEOUT_MS = 10 * 60 * 1000;

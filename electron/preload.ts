@@ -1,17 +1,24 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+import {
+  GENERATE_DOCUMENT_CHANNEL,
+  RECOGNIZE_PASSPORT_CHANNEL,
+  SELECT_IMAGE_CHANNEL,
+  SELECT_TEMPLATE_CHANNEL,
+} from './ipc.channels';
 import type { ElectronAPI } from './models/api.model';
 
-const SELECT_IMAGE_CHANNEL = 'dialog:select-image';
-const RECOGNIZE_PASSPORT_CHANNEL = 'passport:recognize';
-
 const electronAPI: ElectronAPI = {
-  recognizePassport: () =>
-    ipcRenderer.invoke(RECOGNIZE_PASSPORT_CHANNEL) as ReturnType<
-      ElectronAPI['recognizePassport']
+  generateDocument: (data) =>
+    ipcRenderer.invoke(GENERATE_DOCUMENT_CHANNEL, data) as ReturnType<
+      ElectronAPI['generateDocument']
     >,
+  recognizePassport: () =>
+    ipcRenderer.invoke(RECOGNIZE_PASSPORT_CHANNEL) as ReturnType<ElectronAPI['recognizePassport']>,
   selectImage: () =>
     ipcRenderer.invoke(SELECT_IMAGE_CHANNEL) as ReturnType<ElectronAPI['selectImage']>,
+  selectTemplate: () =>
+    ipcRenderer.invoke(SELECT_TEMPLATE_CHANNEL) as ReturnType<ElectronAPI['selectTemplate']>,
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

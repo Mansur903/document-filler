@@ -49,6 +49,24 @@ python -m venv .venv-ocr
 
 The OCR models are downloaded to the local PaddleX cache on first recognition. The Python runtime and models are not bundled by `package:win` yet.
 
+## DOCX templates
+
+Select a `.docx` template in the application after recognizing a passport. The template can contain these placeholders:
+
+```text
+{surname}
+{givenName}
+{dateOfBirth}
+{placeOfBirth}
+{currentNationality}
+{sex}
+{numberOfTravelDocument}
+{validUntil}
+{issuedByCountry}
+```
+
+The application uses the current editable form values and asks where to save the filled document. Dates are written as `DD.MM.YYYY`.
+
 ## Running unit tests
 
 To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:

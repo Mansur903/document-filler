@@ -14,7 +14,7 @@
         <button
           class="button button--secondary"
           type="button"
-          [disabled]="isSelecting() || isRecognizing()"
+          [disabled]="isSelecting() || isRecognizing() || isGenerating()"
           (click)="onSelectImage()"
         >
           @if (isSelecting()) {
@@ -41,7 +41,7 @@
         <button
           class="button button--primary button--wide"
           type="button"
-          [disabled]="isRecognizing()"
+          [disabled]="isRecognizing() || isGenerating()"
           (click)="onRecognizePassport()"
         >
           {{ isRecognizing() ? 'Recognizing...' : 'Recognize passport' }}
@@ -131,6 +131,58 @@
           <strong>No recognized data</strong>
           <span>Select an image and run recognition.</span>
         </div>
+      }
+    </section>
+
+    <section class="panel panel--document" aria-labelledby="document-template-title">
+      <header class="panel__header">
+        <div>
+          <h2 id="document-template-title">Document template</h2>
+          <p>Select a DOCX template containing passport data placeholders.</p>
+        </div>
+        <button
+          class="button button--secondary"
+          type="button"
+          [disabled]="isSelectingTemplate() || isGenerating()"
+          (click)="onSelectTemplate()"
+        >
+          @if (isSelectingTemplate()) {
+            Opening...
+          } @else if (selectedTemplate()) {
+            Choose another
+          } @else {
+            Select template
+          }
+        </button>
+      </header>
+
+      @if (selectedTemplate(); as template) {
+        <p class="panel__file-name" [title]="template.name">{{ template.name }}</p>
+      } @else {
+        <p class="panel__file-name">No DOCX template selected.</p>
+      }
+
+      @if (templateSelectionError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
+
+      <button
+        class="button button--primary button--wide"
+        type="button"
+        [disabled]="
+          !selectedTemplate() || !hasRecognizedData() || isRecognizing() || isGenerating()
+        "
+        (click)="onGenerateDocument()"
+      >
+        {{ isGenerating() ? 'Generating...' : 'Generate document' }}
+      </button>
+
+      @if (generationError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
+
+      @if (generatedDocument(); as document) {
+        <p class="panel__result" role="status">Saved as {{ document.name }}</p>
       }
     </section>
   </div>

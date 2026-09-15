@@ -101,6 +101,15 @@
       font-size: 0.85rem;
     }
   }
+
+  &__result {
+    color: var(--tmt-color-primary);
+    margin: 0;
+  }
+
+  &--document {
+    grid-column: 1 / -1;
+  }
 }
 
 .button {

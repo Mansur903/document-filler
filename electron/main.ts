@@ -1,14 +1,24 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import { readFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
 
-import { RECOGNIZE_PASSPORT_CHANNEL, SELECT_IMAGE_CHANNEL } from './image-selection';
+import {
+  GENERATE_DOCUMENT_CHANNEL,
+  RECOGNIZE_PASSPORT_CHANNEL,
+  SELECT_IMAGE_CHANNEL,
+  SELECT_TEMPLATE_CHANNEL,
+} from './ipc.channels';
 import type { PassportData } from './models/api.model';
-import type { SelectedImage } from './models/ui.model';
-import { recognizePassport } from './passport-ocr.service';
+import type { GeneratedDocument, SelectedImage, SelectedTemplate } from './models/ui.model';
+import {
+  generateDocument,
+  isPassportFormData,
+} from './services/document-generation.service';
+import { recognizePassport } from './services/passport-ocr.service';
 
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
 let selectedImagePath: string | null = null;
+let selectedTemplatePath: string | null = null;
 
 void app.whenReady().then(() => {
   createWindow();
@@ -22,6 +32,7 @@ void app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   selectedImagePath = null;
+  selectedTemplatePath = null;
   app.quit();
 });
 
@@ -53,24 +64,83 @@ ipcMain.handle(SELECT_IMAGE_CHANNEL, async (event): Promise<SelectedImage | null
   };
 });
 
+ipcMain.handle(SELECT_TEMPLATE_CHANNEL, async (event): Promise<SelectedTemplate | null> => {
+  const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+
+  if (!requestingWindow || requestingWindow.isDestroyed()) {
+    throw new Error('Template selection must be requested by an application window.');
+  }
+
+  const result = await dialog.showOpenDialog(requestingWindow, {
+    filters: [{ extensions: ['docx'], name: 'Word documents' }],
+    properties: ['openFile'],
+    title: 'Select DOCX template',
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const [templatePath] = result.filePaths;
+  selectedTemplatePath = templatePath;
+
+  return { name: basename(templatePath) };
+});
+
+ipcMain.handle(RECOGNIZE_PASSPORT_CHANNEL, async (event): Promise<PassportData> => {
+  const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+
+  if (!requestingWindow || requestingWindow.isDestroyed()) {
+    throw new Error('Passport recognition must be requested by an application window.');
+  }
+
+  if (selectedImagePath === null) {
+    throw new Error('The selected image is no longer available.');
+  }
+
+  if (app.isPackaged) {
+    throw new Error('The packaged OCR runtime is not configured yet.');
+  }
+
+  return recognizePassport(app.getAppPath(), selectedImagePath);
+});
+
 ipcMain.handle(
-  RECOGNIZE_PASSPORT_CHANNEL,
-  async (event): Promise<PassportData> => {
+  GENERATE_DOCUMENT_CHANNEL,
+  async (event, data: unknown): Promise<GeneratedDocument | null> => {
     const requestingWindow = BrowserWindow.fromWebContents(event.sender);
 
     if (!requestingWindow || requestingWindow.isDestroyed()) {
-      throw new Error('Passport recognition must be requested by an application window.');
+      throw new Error('Document generation must be requested by an application window.');
     }
 
-    if (selectedImagePath === null) {
-      throw new Error('The selected image is no longer available.');
+    if (selectedTemplatePath === null) {
+      throw new Error('Select a DOCX template before generating a document.');
     }
 
-    if (app.isPackaged) {
-      throw new Error('The packaged OCR runtime is not configured yet.');
+    if (!isPassportFormData(data)) {
+      throw new Error('The passport form contains invalid data.');
     }
 
-    return recognizePassport(app.getAppPath(), selectedImagePath);
+    const document = await generateDocument(selectedTemplatePath, data);
+    const templateExtension = extname(selectedTemplatePath);
+    const defaultName = `${basename(selectedTemplatePath, templateExtension)}-filled.docx`;
+    const result = await dialog.showSaveDialog(requestingWindow, {
+      defaultPath: defaultName,
+      filters: [{ extensions: ['docx'], name: 'Word documents' }],
+      title: 'Save filled document',
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    const outputPath = result.filePath.toLowerCase().endsWith('.docx')
+      ? result.filePath
+      : `${result.filePath}.docx`;
+    await writeFile(outputPath, document);
+
+    return { name: basename(outputPath) };
   },
 );
 

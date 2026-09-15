@@ -11,7 +11,7 @@
     "dev:electron": "wait-on http-get://127.0.0.1:4200 && npm run build:electron && set \"ELECTRON_RUN_AS_NODE=\" && electron . --dev-server-url=http://127.0.0.1:4200",
     "build": "npm run build:angular && npm run build:electron",
     "build:angular": "ng build",
-    "build:electron": "tsc --project tsconfig.electron.json",
+    "build:electron": "tsc --project tsconfig.electron.json && esbuild electron/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/preload.js",
     "package:win": "npm run build && electron-builder --win",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -25,6 +25,8 @@
     "@angular/forms": "^22.1.0",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "docxtemplater": "^3.70.0",
+    "pizzip": "^3.2.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -36,6 +38,7 @@
     "concurrently": "^10.0.5",
     "electron": "^44.3.0",
     "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
