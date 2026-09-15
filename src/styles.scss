@@ -1,10 +1,38 @@
 :root {
-  --tmt-color-border: light-dark(rgb(190 190 190), rgb(90 90 90));
-  --tmt-color-danger: light-dark(rgb(180 0 0), rgb(255 130 130));
-
+  --tmt-color-background: light-dark(rgb(244 246 251), rgb(14 19 28));
+  --tmt-color-border: light-dark(rgb(221 226 235), rgb(51 61 76));
+  --tmt-color-danger: light-dark(rgb(177 35 48), rgb(255 145 156));
+  --tmt-color-danger-soft: light-dark(rgb(255 235 237), rgb(66 29 36));
+  --tmt-color-on-primary: light-dark(rgb(255 255 255), rgb(255 255 255));
+  --tmt-color-primary: light-dark(rgb(33 82 176), rgb(120 166 255));
+  --tmt-color-primary-soft: light-dark(rgb(231 238 255), rgb(31 50 82));
+  --tmt-color-surface: light-dark(rgb(255 255 255), rgb(24 31 43));
+  --tmt-color-surface-muted: light-dark(rgb(247 248 250), rgb(31 40 54));
+  --tmt-color-text: light-dark(rgb(25 32 45), rgb(238 242 249));
+  --tmt-color-text-muted: light-dark(rgb(95 105 122), rgb(166 177 193));
   color-scheme: light dark;
+  color: var(--tmt-color-text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
+  background: var(--tmt-color-background);
   margin: 0;
+  min-width: 20rem;
+}
+
+button,
+input {
+  font: inherit;
 }

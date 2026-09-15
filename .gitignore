@@ -33,6 +33,9 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+/.venv-ocr
+__pycache__/
+*.py[cod]
 .sass-cache/
 /connect.lock
 /coverage

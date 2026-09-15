@@ -36,6 +36,19 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+## Local Russian international passport OCR
+
+Russian international passport OCR currently runs locally in development mode with Python 3.11, PaddlePaddle, and PaddleOCR.
+
+Create the isolated environment and install the pinned dependencies:
+
+```powershell
+python -m venv .venv-ocr
+.\.venv-ocr\Scripts\python.exe -m pip install -r ocr\requirements.txt
+```
+
+The OCR models are downloaded to the local PaddleX cache on first recognition. The Python runtime and models are not bundled by `package:win` yet.
+
 ## Running unit tests
 
 To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:

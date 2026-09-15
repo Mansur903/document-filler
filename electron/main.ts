@@ -2,10 +2,13 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
-import { SELECT_IMAGE_CHANNEL } from './image-selection';
-import type { SelectedImage } from './selected-image.model';
+import { RECOGNIZE_PASSPORT_CHANNEL, SELECT_IMAGE_CHANNEL } from './image-selection';
+import type { PassportData } from './models/api.model';
+import type { SelectedImage } from './models/ui.model';
+import { recognizePassport } from './passport-ocr.service';
 
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
+let selectedImagePath: string | null = null;
 
 void app.whenReady().then(() => {
   createWindow();
@@ -18,6 +21,7 @@ void app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  selectedImagePath = null;
   app.quit();
 });
 
@@ -41,12 +45,34 @@ ipcMain.handle(SELECT_IMAGE_CHANNEL, async (event): Promise<SelectedImage | null
   const [filePath] = result.filePaths;
 
   const file = await readFile(filePath);
+  selectedImagePath = filePath;
 
   return {
     dataUrl: `data:image/jpeg;base64,${file.toString('base64')}`,
     name: basename(filePath),
   };
 });
+
+ipcMain.handle(
+  RECOGNIZE_PASSPORT_CHANNEL,
+  async (event): Promise<PassportData> => {
+    const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+
+    if (!requestingWindow || requestingWindow.isDestroyed()) {
+      throw new Error('Passport recognition must be requested by an application window.');
+    }
+
+    if (selectedImagePath === null) {
+      throw new Error('The selected image is no longer available.');
+    }
+
+    if (app.isPackaged) {
+      throw new Error('The packaged OCR runtime is not configured yet.');
+    }
+
+    return recognizePassport(app.getAppPath(), selectedImagePath);
+  },
+);
 
 function getDevServerUrl(): string | undefined {
   return process.argv

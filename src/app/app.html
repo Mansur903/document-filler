@@ -1,26 +1,137 @@
-<main class="app-shell">
-  <h1>Document Filler</h1>
-  <p>Select a JPG image of a passport to preview it.</p>
+<main class="passport-page">
+  <header class="passport-page__header">
+    <h1>Passport reader</h1>
+    <p>Select a JPG image of a Russian international passport.</p>
+  </header>
 
-  <button type="button" [disabled]="isSelecting()" (click)="onSelectImage()">
-    @if (isSelecting()) {
-      Opening picker...
-    } @else if (selectedImage()) {
-      Select another image
-    } @else {
-      Select passport image
-    }
-  </button>
+  <div class="passport-page__content">
+    <section class="panel" aria-labelledby="passport-image-title">
+      <header class="panel__header">
+        <div>
+          <h2 id="passport-image-title">Passport image</h2>
+          <p>Use a clear photo of the entire data page.</p>
+        </div>
+        <button
+          class="button button--secondary"
+          type="button"
+          [disabled]="isSelecting() || isRecognizing()"
+          (click)="onSelectImage()"
+        >
+          @if (isSelecting()) {
+            Opening...
+          } @else if (selectedImage()) {
+            Choose another
+          } @else {
+            Select image
+          }
+        </button>
+      </header>
 
-  @if (selectionError(); as error) {
-    <p class="app-shell__error" role="alert">{{ error }}</p>
-  }
+      @if (selectionError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
 
-  @if (selectedImage(); as image) {
-    <section class="app-shell__preview" aria-labelledby="selected-image-title">
-      <h2 id="selected-image-title">Selected image</h2>
-      <p class="app-shell__file-name">{{ image.name }}</p>
-      <img [src]="image.dataUrl" [alt]="'Preview of ' + image.name" />
+      @if (selectedImage(); as image) {
+        <div class="panel__preview">
+          <img [src]="image.dataUrl" [alt]="'Preview of ' + image.name" />
+        </div>
+
+        <p class="panel__file-name" [title]="image.name">{{ image.name }}</p>
+
+        <button
+          class="button button--primary button--wide"
+          type="button"
+          [disabled]="isRecognizing()"
+          (click)="onRecognizePassport()"
+        >
+          {{ isRecognizing() ? 'Recognizing...' : 'Recognize passport' }}
+        </button>
+      } @else {
+        <div class="panel__empty">
+          <strong>No image selected</strong>
+          <span>JPG and JPEG files are supported.</span>
+        </div>
+      }
+
+      @if (recognitionError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
     </section>
-  }
+
+    <section class="panel" aria-labelledby="passport-data-title">
+      <header class="panel__header">
+        <div>
+          <h2 id="passport-data-title">Passport data</h2>
+          <p>Recognized values can be edited.</p>
+        </div>
+      </header>
+
+      @if (isRecognizing()) {
+        <div class="panel__empty" aria-live="polite">
+          <strong>Reading passport...</strong>
+          <span>The first recognition may take a little longer.</span>
+        </div>
+      } @else if (hasRecognizedData()) {
+        <form class="passport-form" [formGroup]="passportForm">
+          <fieldset>
+            <legend>Personal details</legend>
+
+            <label class="passport-form__field">
+              <span>Surname</span>
+              <input type="text" formControlName="surname" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Given name</span>
+              <input type="text" formControlName="givenName" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Date of birth</span>
+              <input type="date" formControlName="dateOfBirth" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Place of birth</span>
+              <input type="text" formControlName="placeOfBirth" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Nationality</span>
+              <input type="text" formControlName="currentNationality" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Sex</span>
+              <input type="text" formControlName="sex" autocomplete="off" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Document details</legend>
+
+            <label class="passport-form__field passport-form__field--wide">
+              <span>Passport number</span>
+              <input type="text" formControlName="numberOfTravelDocument" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Valid until</span>
+              <input type="date" formControlName="validUntil" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
+              <span>Issued by country</span>
+              <input type="text" formControlName="issuedByCountry" autocomplete="off" />
+            </label>
+          </fieldset>
+        </form>
+      } @else {
+        <div class="panel__empty">
+          <strong>No recognized data</strong>
+          <span>Select an image and run recognition.</span>
+        </div>
+      }
+    </section>
+  </div>
 </main>
