@@ -33,6 +33,7 @@ def parse_passport_data(
     return {
         "currentNationality": _parse_country_code(line_two[10:13]),
         "dateOfBirth": _parse_date(line_two[13:19], line_two[19], reference_date, True),
+        "dateOfIssue": _parse_date_of_issue(ocr_blocks),
         "givenName": given_name,
         "issuedByCountry": "RUS",
         "numberOfTravelDocument": _parse_document_number(line_two),
@@ -151,9 +152,53 @@ def _parse_place_of_birth(ocr_blocks: list[OcrTextBlock]) -> str | None:
     return None
 
 
+def _parse_date_of_issue(ocr_blocks: list[OcrTextBlock]) -> str | None:
+    for label in ocr_blocks:
+        if "DATEOFISSUE" not in _compact_text(label["text"]):
+            continue
+
+        inline_value = re.split(
+            r"DATE\s*OF\s*ISSUE", label["text"], maxsplit=1, flags=re.IGNORECASE
+        )[-1]
+        parsed_date = _parse_visual_date(inline_value)
+
+        if parsed_date:
+            return parsed_date
+
+        for candidate in _find_values_below_label(label, ocr_blocks):
+            parsed_date = _parse_visual_date(candidate)
+
+            if parsed_date:
+                return parsed_date
+
+    return None
+
+
+def _parse_visual_date(value: str) -> str | None:
+    normalized = value.upper().translate(_NUMERIC_OCR_CORRECTIONS)
+    parts = re.search(r"(?<!\d)(\d{2})\D+(\d{2})\D+(\d{4})(?!\d)", normalized)
+
+    if not parts:
+        return None
+
+    day, month, year = (int(part) for part in parts.groups())
+
+    try:
+        return date(year, month, day).isoformat()
+    except ValueError:
+        return None
+
+
 def _find_value_below_label(
     label: OcrTextBlock, ocr_blocks: list[OcrTextBlock]
 ) -> str | None:
+    candidates = _find_values_below_label(label, ocr_blocks)
+    return candidates[0] if candidates else None
+
+
+def _find_values_below_label(
+    label: OcrTextBlock, ocr_blocks: list[OcrTextBlock]
+) -> list[str]:
     label_left, label_top, label_right, label_bottom = label["box"]
     label_height = max(label_bottom - label_top, 1)
     candidates: list[tuple[int, int, str]] = []
@@ -179,7 +224,7 @@ def _find_value_below_label(
 
         candidates.append((max(vertical_gap, 0), abs(left - label_left), value))
 
-    return min(candidates)[2] if candidates else None
+    return [candidate[2] for candidate in sorted(candidates)]
 
 
 def _is_visual_label(value: str) -> bool:
@@ -229,6 +274,7 @@ def _empty_passport_data() -> PassportData:
     return {
         "currentNationality": None,
         "dateOfBirth": None,
+        "dateOfIssue": None,
         "givenName": None,
         "issuedByCountry": None,
         "numberOfTravelDocument": None,

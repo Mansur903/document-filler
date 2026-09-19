@@ -13,12 +13,12 @@ from passport_data_model import OcrTextBlock, PassportData
 
 
 RESULT_PREFIX = "OCR_RESULT:"
-SUPPORTED_EXTENSIONS = {".jpeg", ".jpg"}
+SUPPORTED_EXTENSIONS = {".jpeg", ".jpg", ".pdf"}
 DETECTION_MODEL_NAME = "PP-OCRv6_tiny_det"
 RECOGNITION_MODEL_NAME = "cyrillic_PP-OCRv5_mobile_rec"
 
 
-def recognize_passport(image_path: Path) -> PassportData:
+def recognize_passport(passport_file_path: Path) -> PassportData:
     os.environ.setdefault("PADDLE_PDX_MODEL_SOURCE", "bos")
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
@@ -46,28 +46,41 @@ def recognize_passport(image_path: Path) -> PassportData:
             use_textline_orientation=False,
             **model_settings,
         )
-        results = ocr.predict(str(image_path))
+        results = ocr.predict(str(passport_file_path))
 
-    blocks = _extract_text_blocks(results)
-    return parse_passport_data(blocks)
+    return _select_passport_page(results)
 
 
-def _extract_text_blocks(results: Any) -> list[OcrTextBlock]:
-    blocks: list[OcrTextBlock] = []
+def _select_passport_page(results: Any) -> PassportData:
+    has_pages = False
 
     for result in results:
-        recognized_texts = result.get("rec_texts", [])
-        recognized_boxes = result.get("rec_boxes")
+        has_pages = True
+        passport_data = parse_passport_data(_extract_text_blocks(result))
 
-        for index, text in enumerate(recognized_texts):
-            recognized_text = str(text).strip()
+        if passport_data["issuedByCountry"] == "RUS":
+            return passport_data
 
-            if not recognized_text:
-                continue
+    if not has_pages:
+        raise ValueError("OCR returned no document pages.")
 
-            raw_box = recognized_boxes[index] if recognized_boxes is not None else (0, index, 0, index)
-            box = tuple(int(value) for value in raw_box[:4])
-            blocks.append({"box": box, "text": recognized_text})
+    return parse_passport_data([])
+
+
+def _extract_text_blocks(result: Any) -> list[OcrTextBlock]:
+    blocks: list[OcrTextBlock] = []
+    recognized_texts = result.get("rec_texts", [])
+    recognized_boxes = result.get("rec_boxes")
+
+    for index, text in enumerate(recognized_texts):
+        recognized_text = str(text).strip()
+
+        if not recognized_text:
+            continue
+
+        raw_box = recognized_boxes[index] if recognized_boxes is not None else (0, index, 0, index)
+        box = tuple(int(value) for value in raw_box[:4])
+        blocks.append({"box": box, "text": recognized_text})
 
     return blocks
 
@@ -85,25 +98,25 @@ def _get_bundled_model_root() -> Path | None:
     return model_root
 
 
-def _validate_image_path(raw_path: str) -> Path:
-    image_path = Path(raw_path).resolve(strict=True)
+def _validate_input_path(raw_path: str) -> Path:
+    input_path = Path(raw_path).resolve(strict=True)
 
-    if not image_path.is_file():
+    if not input_path.is_file():
         raise ValueError("The OCR input must be a file.")
 
-    if image_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-        raise ValueError("Only JPG and JPEG files are supported.")
+    if input_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        raise ValueError("Only JPG, JPEG, and PDF files are supported.")
 
-    return image_path
+    return input_path
 
 
 def main() -> int:
     if len(sys.argv) != 2:
-        print("Usage: recognize_passport.py <image-path>", file=sys.stderr)
+        print("Usage: recognize_passport.py <passport-file-path>", file=sys.stderr)
         return 2
 
     try:
-        passport_data = recognize_passport(_validate_image_path(sys.argv[1]))
+        passport_data = recognize_passport(_validate_input_path(sys.argv[1]))
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
         print(f"OCR failed: {error}", file=sys.stderr)

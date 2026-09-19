@@ -9,6 +9,7 @@ class OcrTextBlock(TypedDict):
 class PassportData(TypedDict):
     currentNationality: str | None
     dateOfBirth: str | None
+    dateOfIssue: str | None
     givenName: str | None
     issuedByCountry: str | None
     numberOfTravelDocument: str | None

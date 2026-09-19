@@ -5,11 +5,15 @@ import { basename, extname, join } from 'node:path';
 import {
   GENERATE_DOCUMENT_CHANNEL,
   RECOGNIZE_PASSPORT_CHANNEL,
-  SELECT_IMAGE_CHANNEL,
+  SELECT_PASSPORT_FILE_CHANNEL,
   SELECT_TEMPLATE_CHANNEL,
 } from './ipc.channels';
 import type { PassportData } from './models/api.model';
-import type { GeneratedDocument, SelectedImage, SelectedTemplate } from './models/ui.model';
+import type {
+  GeneratedDocument,
+  SelectedPassportFile,
+  SelectedTemplate,
+} from './models/ui.model';
 import {
   generateDocument,
   isPassportFormData,
@@ -17,7 +21,8 @@ import {
 import { recognizePassport } from './services/passport-ocr.service';
 
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
-let selectedImagePath: string | null = null;
+const SUPPORTED_PASSPORT_FILE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.pdf']);
+let selectedPassportFilePath: string | null = null;
 let selectedTemplatePath: string | null = null;
 
 void app.whenReady().then(() => {
@@ -31,38 +36,51 @@ void app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  selectedImagePath = null;
+  selectedPassportFilePath = null;
   selectedTemplatePath = null;
   app.quit();
 });
 
-ipcMain.handle(SELECT_IMAGE_CHANNEL, async (event): Promise<SelectedImage | null> => {
-  const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+ipcMain.handle(
+  SELECT_PASSPORT_FILE_CHANNEL,
+  async (event): Promise<SelectedPassportFile | null> => {
+    const requestingWindow = BrowserWindow.fromWebContents(event.sender);
 
-  if (!requestingWindow || requestingWindow.isDestroyed()) {
-    throw new Error('Image selection must be requested by an application window.');
-  }
+    if (!requestingWindow || requestingWindow.isDestroyed()) {
+      throw new Error('Passport file selection must be requested by an application window.');
+    }
 
-  const result = await dialog.showOpenDialog(requestingWindow, {
-    filters: [{ extensions: ['jpg', 'jpeg'], name: 'JPEG images' }],
-    properties: ['openFile'],
-    title: 'Select passport image',
-  });
+    const result = await dialog.showOpenDialog(requestingWindow, {
+      filters: [{ extensions: ['jpg', 'jpeg', 'pdf'], name: 'Passport files' }],
+      properties: ['openFile'],
+      title: 'Select passport file',
+    });
 
-  if (result.canceled || result.filePaths.length === 0) {
-    return null;
-  }
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
 
-  const [filePath] = result.filePaths;
+    const [filePath] = result.filePaths;
+    const extension = extname(filePath).toLowerCase();
 
-  const file = await readFile(filePath);
-  selectedImagePath = filePath;
+    if (!SUPPORTED_PASSPORT_FILE_EXTENSIONS.has(extension)) {
+      throw new Error('Only JPG, JPEG, and PDF passport files are supported.');
+    }
 
-  return {
-    dataUrl: `data:image/jpeg;base64,${file.toString('base64')}`,
-    name: basename(filePath),
-  };
-});
+    const type = extension === '.pdf' ? 'pdf' : 'image';
+    const previewDataUrl =
+      type === 'image'
+        ? `data:image/jpeg;base64,${(await readFile(filePath)).toString('base64')}`
+        : null;
+    selectedPassportFilePath = filePath;
+
+    return {
+      name: basename(filePath),
+      previewDataUrl,
+      type,
+    };
+  },
+);
 
 ipcMain.handle(SELECT_TEMPLATE_CHANNEL, async (event): Promise<SelectedTemplate | null> => {
   const requestingWindow = BrowserWindow.fromWebContents(event.sender);
@@ -94,11 +112,11 @@ ipcMain.handle(RECOGNIZE_PASSPORT_CHANNEL, async (event): Promise<PassportData> 
     throw new Error('Passport recognition must be requested by an application window.');
   }
 
-  if (selectedImagePath === null) {
-    throw new Error('The selected image is no longer available.');
+  if (selectedPassportFilePath === null) {
+    throw new Error('The selected passport file is no longer available.');
   }
 
-  return recognizePassport(selectedImagePath);
+  return recognizePassport(selectedPassportFilePath);
 });
 
 ipcMain.handle(

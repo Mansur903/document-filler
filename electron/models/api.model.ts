@@ -1,15 +1,16 @@
-import type { GeneratedDocument, SelectedImage, SelectedTemplate } from './ui.model';
+import type { GeneratedDocument, SelectedPassportFile, SelectedTemplate } from './ui.model';
 
 export interface ElectronAPI {
   generateDocument(data: PassportFormData): Promise<GeneratedDocument | null>;
   recognizePassport(): Promise<PassportData>;
-  selectImage(): Promise<SelectedImage | null>;
+  selectPassportFile(): Promise<SelectedPassportFile | null>;
   selectTemplate(): Promise<SelectedTemplate | null>;
 }
 
 export interface PassportData {
   readonly currentNationality: string | null;
   readonly dateOfBirth: string | null;
+  readonly dateOfIssue: string | null;
   readonly givenName: string | null;
   readonly issuedByCountry: string | null;
   readonly numberOfTravelDocument: string | null;
@@ -22,6 +23,7 @@ export interface PassportData {
 export interface PassportFormData {
   readonly currentNationality: string;
   readonly dateOfBirth: string;
+  readonly dateOfIssue: string;
   readonly givenName: string;
   readonly issuedByCountry: string;
   readonly numberOfTravelDocument: string;

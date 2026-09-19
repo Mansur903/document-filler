@@ -1,28 +1,28 @@
 <main class="passport-page">
   <header class="passport-page__header">
     <h1>Passport reader</h1>
-    <p>Select a JPG image of a Russian international passport.</p>
+    <p>Select a JPG, JPEG, or PDF scan of a Russian international passport.</p>
   </header>
 
   <div class="passport-page__content">
-    <section class="panel" aria-labelledby="passport-image-title">
+    <section class="panel" aria-labelledby="passport-file-title">
       <header class="panel__header">
         <div>
-          <h2 id="passport-image-title">Passport image</h2>
-          <p>Use a clear photo of the entire data page.</p>
+          <h2 id="passport-file-title">Passport file</h2>
+          <p>Use a clear image or a PDF containing the photo page.</p>
         </div>
         <button
           class="button button--secondary"
           type="button"
           [disabled]="isSelecting() || isRecognizing() || isGenerating()"
-          (click)="onSelectImage()"
+          (click)="onSelectPassportFile()"
         >
           @if (isSelecting()) {
             Opening...
-          } @else if (selectedImage()) {
+          } @else if (selectedPassportFile()) {
             Choose another
           } @else {
-            Select image
+            Select file
           }
         </button>
       </header>
@@ -31,12 +31,22 @@
         <p class="message" role="alert">{{ error }}</p>
       }
 
-      @if (selectedImage(); as image) {
-        <div class="panel__preview">
-          <img [src]="image.dataUrl" [alt]="'Preview of ' + image.name" />
-        </div>
+      @if (selectedPassportFile(); as passportFile) {
+        @if (passportFile.type === 'image' && passportFile.previewDataUrl) {
+          <div class="panel__preview">
+            <img
+              [src]="passportFile.previewDataUrl"
+              [alt]="'Preview of ' + passportFile.name"
+            />
+          </div>
+        } @else {
+          <div class="panel__empty">
+            <strong>PDF document</strong>
+            <span>The passport photo page will be recognized locally.</span>
+          </div>
+        }
 
-        <p class="panel__file-name" [title]="image.name">{{ image.name }}</p>
+        <p class="panel__file-name" [title]="passportFile.name">{{ passportFile.name }}</p>
 
         <button
           class="button button--primary button--wide"
@@ -48,8 +58,8 @@
         </button>
       } @else {
         <div class="panel__empty">
-          <strong>No image selected</strong>
-          <span>JPG and JPEG files are supported.</span>
+          <strong>No passport file selected</strong>
+          <span>JPG, JPEG, and PDF files are supported.</span>
         </div>
       }
 
@@ -116,6 +126,11 @@
             </label>
 
             <label class="passport-form__field">
+              <span>Date of issue</span>
+              <input type="date" formControlName="dateOfIssue" autocomplete="off" />
+            </label>
+
+            <label class="passport-form__field">
               <span>Valid until</span>
               <input type="date" formControlName="validUntil" autocomplete="off" />
             </label>
@@ -129,7 +144,7 @@
       } @else {
         <div class="panel__empty">
           <strong>No recognized data</strong>
-          <span>Select an image and run recognition.</span>
+          <span>Select a passport file and run recognition.</span>
         </div>
       }
     </section>

@@ -10,6 +10,7 @@ const OCR_TIMEOUT_MS = 10 * 60 * 1000;
 const PASSPORT_DATA_FIELDS: readonly (keyof PassportData)[] = [
   'currentNationality',
   'dateOfBirth',
+  'dateOfIssue',
   'givenName',
   'issuedByCountry',
   'numberOfTravelDocument',

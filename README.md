@@ -71,6 +71,7 @@ Select a `.docx` template in the application after recognizing a passport. The t
 {currentNationality}
 {sex}
 {numberOfTravelDocument}
+{dateOfIssue}
 {validUntil}
 {issuedByCountry}
 ```

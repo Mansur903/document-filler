@@ -7,6 +7,7 @@ import type { PassportFormData } from '../models/api.model';
 const PASSPORT_FORM_FIELDS: readonly (keyof PassportFormData)[] = [
   'currentNationality',
   'dateOfBirth',
+  'dateOfIssue',
   'givenName',
   'issuedByCountry',
   'numberOfTravelDocument',
@@ -37,6 +38,7 @@ export async function generateDocument(
   document.render({
     ...data,
     dateOfBirth: formatDate(data.dateOfBirth),
+    dateOfIssue: formatDate(data.dateOfIssue),
     validUntil: formatDate(data.validUntil),
   });
 

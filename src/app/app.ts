@@ -2,7 +2,11 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 import type { PassportData } from './models/api.model';
-import type { GeneratedDocument, SelectedImage, SelectedTemplate } from './models/ui.model';
+import type {
+  GeneratedDocument,
+  SelectedPassportFile,
+  SelectedTemplate,
+} from './models/ui.model';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +26,7 @@ export class App {
   protected readonly passportForm = new FormGroup({
     currentNationality: new FormControl('', { nonNullable: true }),
     dateOfBirth: new FormControl('', { nonNullable: true }),
+    dateOfIssue: new FormControl('', { nonNullable: true }),
     givenName: new FormControl('', { nonNullable: true }),
     issuedByCountry: new FormControl('', { nonNullable: true }),
     numberOfTravelDocument: new FormControl('', { nonNullable: true }),
@@ -31,15 +36,17 @@ export class App {
     validUntil: new FormControl('', { nonNullable: true }),
   });
   protected readonly recognitionError = signal<string | null>(null);
-  protected readonly selectedImage = signal<SelectedImage | null>(null);
+  protected readonly selectedPassportFile = signal<SelectedPassportFile | null>(null);
   protected readonly selectedTemplate = signal<SelectedTemplate | null>(null);
   protected readonly selectionError = signal<string | null>(null);
   protected readonly templateSelectionError = signal<string | null>(null);
 
-  /** Opens the native image picker and stores the selected image for preview. */
-  protected async onSelectImage(): Promise<void> {
+  /** Opens the native passport file picker and stores the selected file. */
+  protected async onSelectPassportFile(): Promise<void> {
     if (!window.electronAPI) {
-      this.selectionError.set('Image selection is available only in the desktop application.');
+      this.selectionError.set(
+        'Passport file selection is available only in the desktop application.',
+      );
       return;
     }
 
@@ -47,28 +54,30 @@ export class App {
     this.selectionError.set(null);
 
     try {
-      const image = await window.electronAPI.selectImage();
+      const passportFile = await window.electronAPI.selectPassportFile();
 
-      if (image) {
+      if (passportFile) {
         this.generatedDocument.set(null);
         this.generationError.set(null);
         this.hasRecognizedData.set(false);
         this.passportForm.reset();
         this.recognitionError.set(null);
-        this.selectedImage.set(image);
+        this.selectedPassportFile.set(passportFile);
       }
     } catch {
-      this.selectionError.set('The image could not be opened. Please try another JPG file.');
+      this.selectionError.set(
+        'The passport file could not be opened. Please try another JPG, JPEG, or PDF file.',
+      );
     } finally {
       this.isSelecting.set(false);
     }
   }
 
-  /** Recognizes passport fields in the currently selected image. */
+  /** Recognizes passport fields in the currently selected passport file. */
   protected async onRecognizePassport(): Promise<void> {
-    const image = this.selectedImage();
+    const passportFile = this.selectedPassportFile();
 
-    if (!image || this.isRecognizing()) {
+    if (!passportFile || this.isRecognizing()) {
       return;
     }
 
@@ -145,6 +154,7 @@ export class App {
     this.passportForm.setValue({
       currentNationality: passport.currentNationality ?? '',
       dateOfBirth: passport.dateOfBirth ?? '',
+      dateOfIssue: passport.dateOfIssue ?? '',
       givenName: passport.givenName ?? '',
       issuedByCountry: passport.issuedByCountry ?? '',
       numberOfTravelDocument: passport.numberOfTravelDocument ?? '',

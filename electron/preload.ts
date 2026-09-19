@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   GENERATE_DOCUMENT_CHANNEL,
   RECOGNIZE_PASSPORT_CHANNEL,
-  SELECT_IMAGE_CHANNEL,
+  SELECT_PASSPORT_FILE_CHANNEL,
   SELECT_TEMPLATE_CHANNEL,
 } from './ipc.channels';
 import type { ElectronAPI } from './models/api.model';
@@ -15,8 +15,10 @@ const electronAPI: ElectronAPI = {
     >,
   recognizePassport: () =>
     ipcRenderer.invoke(RECOGNIZE_PASSPORT_CHANNEL) as ReturnType<ElectronAPI['recognizePassport']>,
-  selectImage: () =>
-    ipcRenderer.invoke(SELECT_IMAGE_CHANNEL) as ReturnType<ElectronAPI['selectImage']>,
+  selectPassportFile: () =>
+    ipcRenderer.invoke(SELECT_PASSPORT_FILE_CHANNEL) as ReturnType<
+      ElectronAPI['selectPassportFile']
+    >,
   selectTemplate: () =>
     ipcRenderer.invoke(SELECT_TEMPLATE_CHANNEL) as ReturnType<ElectronAPI['selectTemplate']>,
 };
