@@ -1,0 +1,3 @@
+# Dependencies required only to build the standalone OCR executable.
+-r requirements.txt
+pyinstaller==6.16.0

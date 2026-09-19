@@ -98,11 +98,7 @@ ipcMain.handle(RECOGNIZE_PASSPORT_CHANNEL, async (event): Promise<PassportData> 
     throw new Error('The selected image is no longer available.');
   }
 
-  if (app.isPackaged) {
-    throw new Error('The packaged OCR runtime is not configured yet.');
-  }
-
-  return recognizePassport(app.getAppPath(), selectedImagePath);
+  return recognizePassport(selectedImagePath);
 });
 
 ipcMain.handle(

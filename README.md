@@ -40,14 +40,24 @@ This will compile your project and store the build artifacts in the `dist/` dire
 
 Russian international passport OCR currently runs locally in development mode with Python 3.11, PaddlePaddle, and PaddleOCR.
 
-Create the isolated environment and install the pinned dependencies:
+Create the isolated environment and install the pinned development dependencies:
 
 ```powershell
 python -m venv .venv-ocr
-.\.venv-ocr\Scripts\python.exe -m pip install -r ocr\requirements.txt
+.\.venv-ocr\Scripts\python.exe -m pip install -r ocr\requirements-build.txt
 ```
 
-The OCR models are downloaded to the local PaddleX cache on first recognition. The Python runtime and models are not bundled by `package:win` yet.
+The OCR models are downloaded to the local PaddleX cache on first recognition.
+
+## Windows installer
+
+Build the application, the standalone OCR runtime, and the NSIS installer:
+
+```powershell
+npm run package:win
+```
+
+The installer is created in `release`. It contains the Python runtime, PaddleOCR, and both OCR models, so the destination computer does not need Python, Node.js, or an internet connection.
 
 ## DOCX templates
 

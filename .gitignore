@@ -4,6 +4,7 @@
 /dist
 /dist-electron
 /release
+/.ocr-build
 /tmp
 /out-tsc
 /bazel-out

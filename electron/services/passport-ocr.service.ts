@@ -1,3 +1,4 @@
+import { app } from 'electron';
 import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -20,10 +21,14 @@ const PASSPORT_DATA_FIELDS: readonly (keyof PassportData)[] = [
 const execFileAsync = promisify(execFile);
 
 /** Runs local passport OCR and returns its validated structured result. */
-export async function recognizePassport(appPath: string, imagePath: string): Promise<PassportData> {
-  const pythonExecutable = join(appPath, '.venv-ocr', 'Scripts', 'python.exe');
-  const scriptPath = join(appPath, 'ocr', 'recognize_passport.py');
-  const { stdout } = await execFileAsync(pythonExecutable, [scriptPath, imagePath], {
+export async function recognizePassport(imagePath: string): Promise<PassportData> {
+  const executable = app.isPackaged
+    ? join(process.resourcesPath, 'ocr', 'ocr.exe')
+    : join(app.getAppPath(), '.venv-ocr', 'Scripts', 'python.exe');
+  const argumentsList = app.isPackaged
+    ? [imagePath]
+    : [join(app.getAppPath(), 'ocr', 'recognize_passport.py'), imagePath];
+  const { stdout } = await execFileAsync(executable, argumentsList, {
     encoding: 'utf8',
     env: {
       ...process.env,
