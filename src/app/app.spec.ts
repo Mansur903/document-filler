@@ -5,6 +5,7 @@ import type { ElectronAPI, PassportData, ResidencePermitData } from './models/ap
 import { App } from './app';
 
 const passportData: PassportData = {
+  authority: 'FMS 12345',
   currentNationality: 'RUS',
   dateOfBirth: '1990-01-01',
   dateOfIssue: '2020-01-01',
@@ -51,7 +52,8 @@ describe('App', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Document Filler');
-    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(18);
+    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(19);
+    expect(input(compiled, 'authority').value).toBe('');
     expect(input(compiled, 'email').value).toBe('');
     expect(input(compiled, 'address').value).toBe('');
     expect(input(compiled, 'phone').value).toBe('');
@@ -95,6 +97,8 @@ describe('App', () => {
     await click(fixture, '[data-testid="recognize-document"]');
 
     const compiled = fixture.nativeElement as HTMLElement;
+    expect(input(compiled, 'authority').value).toBe('FMS 12345');
+    setInput(input(compiled, 'authority'), 'Manual authority');
     setInput(input(compiled, 'email'), 'person@example.com');
     input(compiled, 'input[value="uaeResidencePermit"]')?.click();
     fixture.detectChanges();
@@ -109,6 +113,7 @@ describe('App', () => {
     input(compiled, 'input[value="passport"]')?.click();
     vi.mocked(electronAPI.recognizeDocument).mockResolvedValue({
       ...passportData,
+      authority: 'Replacement authority',
       surname: 'Replacement',
       validUntil: '2040-01-01',
     });
@@ -116,6 +121,7 @@ describe('App', () => {
     await click(fixture, '[data-testid="recognize-document"]');
 
     expect(input(compiled, 'surname').value).toBe('Ivanov');
+    expect(input(compiled, 'authority').value).toBe('Manual authority');
     expect(input(compiled, 'validUntil').value).toBe('01.01.2030');
   });
 
@@ -176,6 +182,7 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     await click(fixture, '[data-testid="select-template"]');
+    setInput(input(compiled, 'authority'), 'Manual authority');
     setInput(input(compiled, 'email'), 'person@example.com');
 
     await click(fixture, '[data-testid="new-user"]');
@@ -187,6 +194,7 @@ describe('App', () => {
     await click(fixture, '[data-testid="confirm-new-user"]');
 
     expect(electronAPI.resetUserSession).toHaveBeenCalledOnce();
+    expect(input(compiled, 'authority').value).toBe('');
     expect(input(compiled, 'email').value).toBe('');
     expect(compiled.textContent).toContain('template.docx');
   });

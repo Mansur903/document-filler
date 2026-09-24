@@ -13,6 +13,7 @@ import type { DocumentType } from '../models/ui.model';
 const OCR_RESULT_PREFIX = 'OCR_RESULT:';
 const OCR_TIMEOUT_MS = 10 * 60 * 1000;
 const PASSPORT_DATA_FIELDS: readonly (keyof PassportData)[] = [
+  'authority',
   'currentNationality',
   'dateOfBirth',
   'dateOfIssue',

@@ -71,6 +71,7 @@ Select a `.docx` template after entering or recognizing personal data. The templ
 {currentNationality}
 {sex}
 {numberOfTravelDocument}
+{authority}
 {dateOfIssue}
 {validUntil}
 {issuedByCountry}

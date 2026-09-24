@@ -11,6 +11,7 @@ import { generateDocument, isPersonalFormData } from './document-generation.serv
 
 const personalData: PersonalFormData = {
   address: 'Example address',
+  authority: 'FMS 12345',
   currentNationality: 'RUS',
   currentOccupation: 'Engineer',
   dateOfBirth: '1990-01-01',
@@ -40,6 +41,7 @@ test('generates all personal placeholders and formats both validity dates', asyn
     const documentXml = new PizZip(output).file('word/document.xml')?.asText();
 
     assert.ok(documentXml);
+    assert.match(documentXml, /FMS 12345/);
     assert.match(documentXml, /Ivanov/);
     assert.match(documentXml, /784200910498284/);
     assert.match(documentXml, /201\/2024\/3821949/);
@@ -53,6 +55,9 @@ test('generates all personal placeholders and formats both validity dates', asyn
 
 test('validates the complete personal form payload', () => {
   assert.equal(isPersonalFormData(personalData), true);
+  const dataWithoutAuthority: Record<string, unknown> = { ...personalData };
+  delete dataWithoutAuthority['authority'];
+  assert.equal(isPersonalFormData(dataWithoutAuthority), false);
   assert.equal(isPersonalFormData({ ...personalData, visaValidUntil: null }), false);
   assert.equal(isPersonalFormData({ surname: 'Ivanov' }), false);
 });
@@ -80,7 +85,7 @@ function createTemplate(): Buffer {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
       '<w:body><w:p><w:r><w:t>' +
-      '{surname}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}' +
+      '{surname}|{authority}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}' +
       '</w:t></w:r></w:p></w:body></w:document>',
   );
   archive.file(

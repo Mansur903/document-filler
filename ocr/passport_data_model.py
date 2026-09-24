@@ -10,6 +10,7 @@ class OcrTextBlock(TypedDict):
 
 
 class PassportData(TypedDict):
+    authority: str | None
     currentNationality: str | None
     dateOfBirth: str | None
     dateOfIssue: str | None

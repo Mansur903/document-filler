@@ -16,6 +16,22 @@ _NUMERIC_OCR_CORRECTIONS = str.maketrans(
     {"B": "8", "D": "0", "I": "1", "L": "1", "O": "0", "Q": "0", "S": "5", "Z": "2"}
 )
 _RUSSIAN_PASSPORT_PREFIX = "P<RUS"
+_AUTHORITY_LABEL_PATTERN = re.compile(
+    r"AUTHORITY|ОРГАН\s*,?\s*ВЫДАВШИЙ\s*ДОКУМЕНТ", re.IGNORECASE
+)
+_AUTHORITY_WORD_PATTERN = re.compile(r"[A-ZА-ЯЁІ]+", re.IGNORECASE)
+_AUTHORITY_OCR_TRANSLATION = str.maketrans(
+    {
+        "А": "A",
+        "Г": "R",
+        "И": "U",
+        "І": "I",
+        "Н": "H",
+        "О": "O",
+        "Т": "T",
+        "У": "Y",
+    }
+)
 
 
 def parse_passport_data(
@@ -31,6 +47,7 @@ def parse_passport_data(
     reference_date = today or date.today()
 
     return {
+        "authority": _parse_authority(ocr_blocks),
         "currentNationality": _parse_country_code(line_two[10:13]),
         "dateOfBirth": _parse_date(line_two[13:19], line_two[19], reference_date, True),
         "dateOfIssue": _parse_date_of_issue(ocr_blocks),
@@ -174,6 +191,74 @@ def _parse_date_of_issue(ocr_blocks: list[OcrTextBlock]) -> str | None:
     return None
 
 
+def _parse_authority(ocr_blocks: list[OcrTextBlock]) -> str | None:
+    for label in ocr_blocks:
+        if not _contains_authority_label(label["text"]):
+            continue
+
+        inline_value = _remove_authority_label(label["text"])
+        parsed_inline_value = _parse_authority_value(inline_value)
+
+        if parsed_inline_value:
+            return parsed_inline_value
+
+        candidates = [
+            (vertical_gap, horizontal_offset, parsed_value)
+            for vertical_gap, horizontal_offset, value in _find_ranked_values_below_label(
+                label, ocr_blocks
+            )
+            if (parsed_value := _parse_authority_value(value)) is not None
+        ]
+
+        if not candidates:
+            continue
+
+        best_score = candidates[0][:2]
+        best_values = {
+            value
+            for vertical_gap, horizontal_offset, value in candidates
+            if (vertical_gap, horizontal_offset) == best_score
+        }
+
+        return next(iter(best_values)) if len(best_values) == 1 else None
+
+    return None
+
+
+def _parse_authority_value(value: str) -> str | None:
+    cleaned = _clean_visual_value(_remove_authority_label(value))
+
+    if not cleaned or _parse_visual_date(cleaned):
+        return None
+
+    return cleaned if sum(character.isalpha() for character in cleaned) >= 2 else None
+
+
+def _contains_authority_label(value: str) -> bool:
+    return bool(_AUTHORITY_LABEL_PATTERN.search(value)) or any(
+        _normalize_authority_word(match.group()) == "AUTHORITY"
+        for match in _AUTHORITY_WORD_PATTERN.finditer(value)
+    )
+
+
+def _remove_authority_label(value: str) -> str:
+    without_known_labels = _AUTHORITY_LABEL_PATTERN.sub(" ", value)
+    return _AUTHORITY_WORD_PATTERN.sub(
+        lambda match: (
+            " "
+            if _normalize_authority_word(match.group()) == "AUTHORITY"
+            else match.group()
+        ),
+        without_known_labels,
+    )
+
+
+def _normalize_authority_word(value: str) -> str:
+    return re.sub(
+        r"[^A-Z]", "", value.upper().translate(_AUTHORITY_OCR_TRANSLATION)
+    )
+
+
 def _parse_visual_date(value: str) -> str | None:
     normalized = value.upper().translate(_NUMERIC_OCR_CORRECTIONS)
     parts = re.search(r"(?<!\d)(\d{2})\D+(\d{2})\D+(\d{4})(?!\d)", normalized)
@@ -199,6 +284,15 @@ def _find_value_below_label(
 def _find_values_below_label(
     label: OcrTextBlock, ocr_blocks: list[OcrTextBlock]
 ) -> list[str]:
+    return [
+        candidate[2]
+        for candidate in _find_ranked_values_below_label(label, ocr_blocks)
+    ]
+
+
+def _find_ranked_values_below_label(
+    label: OcrTextBlock, ocr_blocks: list[OcrTextBlock]
+) -> list[tuple[int, int, str]]:
     label_left, label_top, label_right, label_bottom = label["box"]
     label_height = max(label_bottom - label_top, 1)
     candidates: list[tuple[int, int, str]] = []
@@ -224,10 +318,13 @@ def _find_values_below_label(
 
         candidates.append((max(vertical_gap, 0), abs(left - label_left), value))
 
-    return [candidate[2] for candidate in sorted(candidates)]
+    return sorted(candidates)
 
 
 def _is_visual_label(value: str) -> bool:
+    if _contains_authority_label(value):
+        return True
+
     compact = _compact_text(value)
     return any(
         marker in compact
@@ -272,6 +369,7 @@ def _age(birth_date: date, today: date) -> int:
 
 def _empty_passport_data() -> PassportData:
     return {
+        "authority": None,
         "currentNationality": None,
         "dateOfBirth": None,
         "dateOfIssue": None,

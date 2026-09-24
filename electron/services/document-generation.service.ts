@@ -6,6 +6,7 @@ import type { PersonalFormData } from '../models/api.model';
 
 const PERSONAL_FORM_FIELDS: readonly (keyof PersonalFormData)[] = [
   'address',
+  'authority',
   'currentNationality',
   'currentOccupation',
   'dateOfBirth',

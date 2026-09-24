@@ -14,6 +14,7 @@ export interface ElectronAPI {
 }
 
 export interface PassportData {
+  readonly authority: string | null;
   readonly currentNationality: string | null;
   readonly dateOfBirth: string | null;
   readonly dateOfIssue: string | null;
@@ -38,6 +39,7 @@ export type RecognizedDocumentData = PassportData | ResidencePermitData;
 
 export interface PersonalFormData {
   readonly address: string;
+  readonly authority: string;
   readonly currentNationality: string;
   readonly currentOccupation: string;
   readonly dateOfBirth: string;

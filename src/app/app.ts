@@ -37,6 +37,7 @@ export class App {
   protected readonly isSelectingTemplate = signal(false);
   protected readonly personalForm = new FormGroup({
     address: new FormControl('', { nonNullable: true }),
+    authority: new FormControl('', { nonNullable: true }),
     currentNationality: new FormControl('', { nonNullable: true }),
     currentOccupation: new FormControl('', { nonNullable: true }),
     dateOfBirth: new FormControl('', { nonNullable: true }),

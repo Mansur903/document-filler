@@ -38,8 +38,11 @@ def passport_mrz() -> list[str]:
 
 class RecognizeDocumentTest(unittest.TestCase):
     def test_routes_passport_pages_without_changing_mrz_behavior(self) -> None:
-        data = _select_document_page([result(passport_mrz())], "passport")
+        data = _select_document_page(
+            [result(["Authority", "FMS 12345", *passport_mrz()])], "passport"
+        )
 
+        self.assertEqual(data["authority"], "FMS 12345")
         self.assertEqual(data["issuedByCountry"], "RUS")
         self.assertEqual(data["numberOfTravelDocument"], "123456789")
 
