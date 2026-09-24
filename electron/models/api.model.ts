@@ -1,9 +1,15 @@
-import type { GeneratedDocument, SelectedPassportFile, SelectedTemplate } from './ui.model';
+import type {
+  DocumentType,
+  GeneratedDocument,
+  SelectedDocumentFile,
+  SelectedTemplate,
+} from './ui.model';
 
 export interface ElectronAPI {
-  generateDocument(data: PassportFormData): Promise<GeneratedDocument | null>;
-  recognizePassport(): Promise<PassportData>;
-  selectPassportFile(): Promise<SelectedPassportFile | null>;
+  generateDocument(data: PersonalFormData): Promise<GeneratedDocument | null>;
+  recognizeDocument(documentType: DocumentType): Promise<RecognizedDocumentData>;
+  resetUserSession(): Promise<void>;
+  selectDocumentFile(): Promise<SelectedDocumentFile | null>;
   selectTemplate(): Promise<SelectedTemplate | null>;
 }
 
@@ -20,15 +26,33 @@ export interface PassportData {
   readonly validUntil: string | null;
 }
 
-export interface PassportFormData {
+export interface ResidencePermitData {
+  readonly currentOccupation: string | null;
+  readonly employer: string | null;
+  readonly residencepermitID: string | null;
+  readonly visaID: string | null;
+  readonly visaValidUntil: string | null;
+}
+
+export type RecognizedDocumentData = PassportData | ResidencePermitData;
+
+export interface PersonalFormData {
+  readonly address: string;
   readonly currentNationality: string;
+  readonly currentOccupation: string;
   readonly dateOfBirth: string;
   readonly dateOfIssue: string;
+  readonly email: string;
+  readonly employer: string;
   readonly givenName: string;
   readonly issuedByCountry: string;
   readonly numberOfTravelDocument: string;
+  readonly phone: string;
   readonly placeOfBirth: string;
+  readonly residencepermitID: string;
   readonly sex: string;
   readonly surname: string;
   readonly validUntil: string;
+  readonly visaID: string;
+  readonly visaValidUntil: string;
 }

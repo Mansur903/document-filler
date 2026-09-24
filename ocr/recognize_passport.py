@@ -6,19 +6,31 @@ import os
 from pathlib import Path
 import sys
 import traceback
-from typing import Any
+from typing import Any, cast
 
 from mrz_parser import parse_passport_data
-from passport_data_model import OcrTextBlock, PassportData
+from passport_data_model import (
+    DocumentType,
+    OcrTextBlock,
+    PassportData,
+    ResidencePermitData,
+)
+from residence_permit_parser import (
+    has_residence_permit_anchors,
+    parse_residence_permit_data,
+)
 
 
 RESULT_PREFIX = "OCR_RESULT:"
-SUPPORTED_EXTENSIONS = {".jpeg", ".jpg", ".pdf"}
+DOCUMENT_TYPES: tuple[DocumentType, ...] = ("passport", "uaeResidencePermit")
+SUPPORTED_EXTENSIONS = {".jpeg", ".jpg", ".pdf", ".png"}
 DETECTION_MODEL_NAME = "PP-OCRv6_tiny_det"
 RECOGNITION_MODEL_NAME = "cyrillic_PP-OCRv5_mobile_rec"
 
 
-def recognize_passport(passport_file_path: Path) -> PassportData:
+def recognize_document(
+    document_file_path: Path, document_type: DocumentType
+) -> PassportData | ResidencePermitData:
     os.environ.setdefault("PADDLE_PDX_MODEL_SOURCE", "bos")
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
@@ -46,9 +58,18 @@ def recognize_passport(passport_file_path: Path) -> PassportData:
             use_textline_orientation=False,
             **model_settings,
         )
-        results = ocr.predict(str(passport_file_path))
+        results = ocr.predict(str(document_file_path))
 
-    return _select_passport_page(results)
+    return _select_document_page(results, document_type)
+
+
+def _select_document_page(
+    results: Any, document_type: DocumentType
+) -> PassportData | ResidencePermitData:
+    if document_type == "passport":
+        return _select_passport_page(results)
+
+    return _select_residence_permit_page(results)
 
 
 def _select_passport_page(results: Any) -> PassportData:
@@ -65,6 +86,22 @@ def _select_passport_page(results: Any) -> PassportData:
         raise ValueError("OCR returned no document pages.")
 
     return parse_passport_data([])
+
+
+def _select_residence_permit_page(results: Any) -> ResidencePermitData:
+    has_pages = False
+
+    for result in results:
+        has_pages = True
+        ocr_blocks = _extract_text_blocks(result)
+
+        if has_residence_permit_anchors(ocr_blocks):
+            return parse_residence_permit_data(ocr_blocks)
+
+    if not has_pages:
+        raise ValueError("OCR returned no document pages.")
+
+    return parse_residence_permit_data([])
 
 
 def _extract_text_blocks(result: Any) -> list[OcrTextBlock]:
@@ -105,24 +142,35 @@ def _validate_input_path(raw_path: str) -> Path:
         raise ValueError("The OCR input must be a file.")
 
     if input_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-        raise ValueError("Only JPG, JPEG, and PDF files are supported.")
+        raise ValueError("Only JPG, JPEG, PNG, and PDF files are supported.")
 
     return input_path
 
 
+def _validate_document_type(raw_document_type: str) -> DocumentType:
+    if raw_document_type not in DOCUMENT_TYPES:
+        raise ValueError("The requested document type is not supported.")
+
+    return cast(DocumentType, raw_document_type)
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("Usage: recognize_passport.py <passport-file-path>", file=sys.stderr)
+    if len(sys.argv) != 3:
+        print(
+            "Usage: recognize_passport.py <document-type> <document-file-path>",
+            file=sys.stderr,
+        )
         return 2
 
     try:
-        passport_data = recognize_passport(_validate_input_path(sys.argv[1]))
+        document_type = _validate_document_type(sys.argv[1])
+        document_data = recognize_document(_validate_input_path(sys.argv[2]), document_type)
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
         print(f"OCR failed: {error}", file=sys.stderr)
         return 1
 
-    print(f"{RESULT_PREFIX}{json.dumps(passport_data)}")
+    print(f"{RESULT_PREFIX}{json.dumps(document_data)}")
     return 0
 
 

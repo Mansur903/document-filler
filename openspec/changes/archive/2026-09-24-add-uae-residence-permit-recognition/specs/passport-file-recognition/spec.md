@@ -1,10 +1,6 @@
-# Passport File Recognition Specification
+# Spec Delta
 
-## Purpose
-
-Enables users to select a local passport scan in JPG, JPEG, or PDF format and extract the supported passport fields through the desktop application.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Supported passport file selection
 
@@ -87,12 +83,3 @@ Enables users to select a local passport scan in JPG, JPEG, or PDF format and ex
 
 - **WHEN** выбранное JPG, JPEG или PNG повреждено, не читается или не содержит распознаваемого изображения
 - **THEN** распознавание завершается контролируемой ошибкой без раскрытия локальных путей Angular, а значения общей формы остаются без изменений
-
-### Requirement: Local PDF processing
-
-The system MUST process the selected PDF locally using resources bundled with or installed for the desktop application and MUST NOT upload the passport file to an HTTP service.
-
-#### Scenario: Offline PDF recognition
-
-- **WHEN** the application and OCR resources are installed and the device has no network connection
-- **THEN** the system can select and recognize a supported PDF without requiring a remote API

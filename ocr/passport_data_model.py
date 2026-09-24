@@ -1,4 +1,7 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
+
+
+DocumentType = Literal["passport", "uaeResidencePermit"]
 
 
 class OcrTextBlock(TypedDict):
@@ -17,3 +20,11 @@ class PassportData(TypedDict):
     sex: str | None
     surname: str | None
     validUntil: str | None
+
+
+class ResidencePermitData(TypedDict):
+    currentOccupation: str | None
+    employer: str | None
+    residencepermitID: str | None
+    visaID: str | None
+    visaValidUntil: str | None

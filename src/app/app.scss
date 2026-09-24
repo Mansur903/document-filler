@@ -3,17 +3,20 @@
   min-height: 100vh;
 }
 
-.passport-page {
+.document-page {
   margin: 0 auto;
-  max-width: 72rem;
-  padding: 2.5rem 1.5rem;
+  max-width: 76rem;
+  padding: 1.5rem;
 
   &__header {
-    margin-bottom: 1.5rem;
+    align-items: flex-start;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
 
     h1 {
-      font-size: 2rem;
-      margin: 0 0 0.4rem;
+      font-size: 1.8rem;
+      margin: 0 0 0.3rem;
     }
 
     p {
@@ -23,9 +26,15 @@
   }
 
   &__content {
+    align-items: start;
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(18rem, 0.85fr) minmax(28rem, 1.15fr);
+  }
+
+  &__tools {
+    display: grid;
+    gap: 1rem;
   }
 }
 
@@ -33,26 +42,34 @@
   align-content: start;
   background: var(--tmt-color-surface);
   border: 1px solid var(--tmt-color-border);
-  border-radius: 0.5rem;
+  border-radius: 0.65rem;
   display: grid;
-  gap: 1rem;
-  padding: 1.25rem;
+  gap: 0.8rem;
+  padding: 1rem;
 
   &__header {
     align-items: flex-start;
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     justify-content: space-between;
 
     h2 {
-      font-size: 1.1rem;
-      margin: 0 0 0.25rem;
+      font-size: 1.05rem;
+      margin: 0 0 0.2rem;
     }
 
     p {
       color: var(--tmt-color-text-muted);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       margin: 0;
+    }
+
+    &--sticky {
+      background: var(--tmt-color-surface);
+      padding-bottom: 0.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
   }
 
@@ -61,11 +78,11 @@
     background: var(--tmt-color-surface-muted);
     display: flex;
     justify-content: center;
-    min-height: 20rem;
-    padding: 0.75rem;
+    min-height: 12rem;
+    padding: 0.5rem;
 
     img {
-      max-height: 26rem;
+      max-height: 19rem;
       max-width: 100%;
       object-fit: contain;
     }
@@ -73,7 +90,7 @@
 
   &__file-name {
     color: var(--tmt-color-text-muted);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -86,10 +103,9 @@
     color: var(--tmt-color-text-muted);
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.25rem;
     justify-content: center;
-    min-height: 20rem;
-    padding: 1.5rem;
+    padding: 1rem;
     text-align: center;
 
     strong {
@@ -98,7 +114,11 @@
     }
 
     span {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+    }
+
+    &--compact {
+      min-height: 7rem;
     }
   }
 
@@ -107,66 +127,39 @@
     margin: 0;
   }
 
-  &--document {
-    grid-column: 1 / -1;
+  &--data {
+    max-height: calc(100vh - 7.5rem);
+    overflow-y: auto;
   }
 }
 
-.button {
-  border: 1px solid transparent;
-  border-radius: 0.35rem;
-  cursor: pointer;
-  font-weight: 600;
-  padding: 0.65rem 0.9rem;
-
-  &:disabled {
-    cursor: wait;
-    opacity: 0.55;
-  }
-
-  &--primary {
-    background: var(--tmt-color-primary);
-    color: var(--tmt-color-on-primary);
-  }
-
-  &--secondary {
-    background: var(--tmt-color-surface);
-    border-color: var(--tmt-color-border);
-    color: var(--tmt-color-text);
-  }
-
-  &--wide {
-    width: 100%;
-  }
-}
-
-.passport-form {
+.personal-form {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
 
   fieldset {
     border: 0;
     display: grid;
-    gap: 0.85rem;
+    gap: 0.6rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0;
     padding: 0;
   }
 
   legend {
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     grid-column: 1 / -1;
-    padding: 0 0 0.15rem;
+    padding: 0 0 0.05rem;
   }
 
   &__field {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.25rem;
 
     span {
       color: var(--tmt-color-text-muted);
-      font-size: 0.8rem;
+      font-size: 0.72rem;
     }
 
     input {
@@ -174,8 +167,9 @@
       border: 1px solid var(--tmt-color-border);
       border-radius: 0.35rem;
       color: var(--tmt-color-text);
+      min-width: 0;
       outline: none;
-      padding: 0.65rem 0.7rem;
+      padding: 0.48rem 0.55rem;
 
       &:focus {
         border-color: var(--tmt-color-primary);
@@ -189,34 +183,66 @@
   }
 }
 
+.message,
+.reset-confirmation,
+.status {
+  border-radius: 0.4rem;
+  font-size: 0.8rem;
+  margin: 0;
+  padding: 0.65rem;
+}
+
 .message {
   background: var(--tmt-color-danger-soft);
-  border-radius: 0.35rem;
   color: var(--tmt-color-danger);
-  margin: 0;
-  padding: 0.75rem;
 }
 
-@media (max-width: 50rem) {
-  .passport-page__content {
+.status {
+  background: var(--tmt-color-primary-soft);
+  color: var(--tmt-color-primary);
+}
+
+.reset-confirmation {
+  align-items: center;
+  background: var(--tmt-color-danger-soft);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+
+  &__actions {
+    display: flex;
+    gap: 0.4rem;
+  }
+}
+
+@media (max-width: 54rem) {
+  .document-page__content {
     grid-template-columns: 1fr;
   }
+
+  .panel--data {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
-@media (max-width: 32rem) {
-  .passport-page {
-    padding: 1.5rem 1rem;
+@media (max-width: 34rem) {
+  .document-page {
+    padding: 1rem;
   }
 
-  .panel__header {
+  .panel__header,
+  .reset-confirmation {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .passport-form fieldset {
+  .document-type__options,
+  .personal-form fieldset {
     grid-template-columns: 1fr;
   }
 
-  .passport-form__field--wide {
+  .personal-form__field--wide {
     grid-column: auto;
   }
 }

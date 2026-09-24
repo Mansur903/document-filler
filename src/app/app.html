@@ -1,162 +1,115 @@
-<main class="passport-page">
-  <header class="passport-page__header">
-    <h1>Passport reader</h1>
-    <p>Select a JPG, JPEG, or PDF scan of a Russian international passport.</p>
+<main class="document-page">
+  <header class="document-page__header">
+    <div>
+      <h1>Document Filler</h1>
+      <p>Collect passport and UAE Residence Permit data, then fill a DOCX template.</p>
+    </div>
   </header>
 
-  <div class="passport-page__content">
-    <section class="panel" aria-labelledby="passport-file-title">
-      <header class="panel__header">
-        <div>
-          <h2 id="passport-file-title">Passport file</h2>
-          <p>Use a clear image or a PDF containing the photo page.</p>
-        </div>
+  <div class="document-page__content">
+    <div class="document-page__tools">
+      <section class="panel" aria-labelledby="document-file-title">
+        <header class="panel__header">
+          <div>
+            <h2 id="document-file-title">Document recognition</h2>
+            <p>Select the document type before running local OCR.</p>
+          </div>
+        </header>
+
+        <fieldset class="document-type">
+          <legend>Document type</legend>
+          <div class="document-type__options">
+            <label>
+              <input
+                type="radio"
+                name="documentType"
+                value="passport"
+                [checked]="documentType() === 'passport'"
+                (change)="onDocumentTypeChange('passport')"
+              />
+              <span>Russian passport</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="documentType"
+                value="uaeResidencePermit"
+                [checked]="documentType() === 'uaeResidencePermit'"
+                (change)="onDocumentTypeChange('uaeResidencePermit')"
+              />
+              <span>UAE Residence Permit</span>
+            </label>
+          </div>
+        </fieldset>
+
         <button
           class="button button--secondary"
+          data-testid="select-document"
           type="button"
           [disabled]="isSelecting() || isRecognizing() || isGenerating()"
-          (click)="onSelectPassportFile()"
+          (click)="onSelectDocumentFile()"
         >
           @if (isSelecting()) {
             Opening...
-          } @else if (selectedPassportFile()) {
-            Choose another
+          } @else if (selectedDocumentFile()) {
+            Choose another file
           } @else {
             Select file
           }
         </button>
-      </header>
 
-      @if (selectionError(); as error) {
-        <p class="message" role="alert">{{ error }}</p>
-      }
+        @if (selectionError(); as error) {
+          <p class="message" role="alert">{{ error }}</p>
+        }
 
-      @if (selectedPassportFile(); as passportFile) {
-        @if (passportFile.type === 'image' && passportFile.previewDataUrl) {
-          <div class="panel__preview">
-            <img
-              [src]="passportFile.previewDataUrl"
-              [alt]="'Preview of ' + passportFile.name"
-            />
-          </div>
+        @if (selectedDocumentFile(); as documentFile) {
+          @if (documentFile.type === 'image' && documentFile.previewDataUrl) {
+            <div class="panel__preview">
+              <img [src]="documentFile.previewDataUrl" [alt]="'Preview of ' + documentFile.name" />
+            </div>
+          } @else {
+            <div class="panel__empty panel__empty--compact">
+              <strong>PDF document</strong>
+              <span>The relevant page will be recognized locally.</span>
+            </div>
+          }
+
+          <p class="panel__file-name" [title]="documentFile.name">
+            {{ documentFile.name }}
+          </p>
+
+          <button
+            class="button button--primary button--wide"
+            data-testid="recognize-document"
+            type="button"
+            [disabled]="isRecognizing() || isGenerating()"
+            (click)="onRecognizeDocument()"
+          >
+            {{ isRecognizing() ? 'Recognizing...' : 'Recognize ' + documentTypeLabel }}
+          </button>
         } @else {
-          <div class="panel__empty">
-            <strong>PDF document</strong>
-            <span>The passport photo page will be recognized locally.</span>
+          <div class="panel__empty panel__empty--compact">
+            <strong>No document selected</strong>
+            <span>JPG, JPEG, PNG, and PDF files are supported.</span>
           </div>
         }
 
-        <p class="panel__file-name" [title]="passportFile.name">{{ passportFile.name }}</p>
+        @if (recognitionError(); as error) {
+          <p class="message" role="alert">{{ error }}</p>
+        }
+      </section>
 
-        <button
-          class="button button--primary button--wide"
-          type="button"
-          [disabled]="isRecognizing() || isGenerating()"
-          (click)="onRecognizePassport()"
-        >
-          {{ isRecognizing() ? 'Recognizing...' : 'Recognize passport' }}
-        </button>
-      } @else {
-        <div class="panel__empty">
-          <strong>No passport file selected</strong>
-          <span>JPG, JPEG, and PDF files are supported.</span>
-        </div>
-      }
+      <section class="panel" aria-labelledby="document-template-title">
+        <header class="panel__header">
+          <div>
+            <h2 id="document-template-title">DOCX template</h2>
+            <p>Current form values are used when the document is generated.</p>
+          </div>
+        </header>
 
-      @if (recognitionError(); as error) {
-        <p class="message" role="alert">{{ error }}</p>
-      }
-    </section>
-
-    <section class="panel" aria-labelledby="passport-data-title">
-      <header class="panel__header">
-        <div>
-          <h2 id="passport-data-title">Passport data</h2>
-          <p>Recognized values can be edited.</p>
-        </div>
-      </header>
-
-      @if (isRecognizing()) {
-        <div class="panel__empty" aria-live="polite">
-          <strong>Reading passport...</strong>
-          <span>The first recognition may take a little longer.</span>
-        </div>
-      } @else if (hasRecognizedData()) {
-        <form class="passport-form" [formGroup]="passportForm">
-          <fieldset>
-            <legend>Personal details</legend>
-
-            <label class="passport-form__field">
-              <span>Surname</span>
-              <input type="text" formControlName="surname" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Given name</span>
-              <input type="text" formControlName="givenName" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Date of birth</span>
-              <input type="date" formControlName="dateOfBirth" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Place of birth</span>
-              <input type="text" formControlName="placeOfBirth" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Nationality</span>
-              <input type="text" formControlName="currentNationality" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Sex</span>
-              <input type="text" formControlName="sex" autocomplete="off" />
-            </label>
-          </fieldset>
-
-          <fieldset>
-            <legend>Document details</legend>
-
-            <label class="passport-form__field passport-form__field--wide">
-              <span>Passport number</span>
-              <input type="text" formControlName="numberOfTravelDocument" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Date of issue</span>
-              <input type="date" formControlName="dateOfIssue" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Valid until</span>
-              <input type="date" formControlName="validUntil" autocomplete="off" />
-            </label>
-
-            <label class="passport-form__field">
-              <span>Issued by country</span>
-              <input type="text" formControlName="issuedByCountry" autocomplete="off" />
-            </label>
-          </fieldset>
-        </form>
-      } @else {
-        <div class="panel__empty">
-          <strong>No recognized data</strong>
-          <span>Select a passport file and run recognition.</span>
-        </div>
-      }
-    </section>
-
-    <section class="panel panel--document" aria-labelledby="document-template-title">
-      <header class="panel__header">
-        <div>
-          <h2 id="document-template-title">Document template</h2>
-          <p>Select a DOCX template containing passport data placeholders.</p>
-        </div>
         <button
           class="button button--secondary"
+          data-testid="select-template"
           type="button"
           [disabled]="isSelectingTemplate() || isGenerating()"
           (click)="onSelectTemplate()"
@@ -164,41 +117,193 @@
           @if (isSelectingTemplate()) {
             Opening...
           } @else if (selectedTemplate()) {
-            Choose another
+            Choose another template
           } @else {
             Select template
           }
         </button>
+
+        <p class="panel__file-name" [title]="selectedTemplate()?.name ?? ''">
+          {{ selectedTemplate()?.name ?? 'No DOCX template selected.' }}
+        </p>
+
+        @if (templateSelectionError(); as error) {
+          <p class="message" role="alert">{{ error }}</p>
+        }
+
+        <button
+          class="button button--primary button--wide"
+          data-testid="generate-document"
+          type="button"
+          [disabled]="!selectedTemplate() || !hasFormValues() || isRecognizing() || isGenerating()"
+          (click)="onGenerateDocument()"
+        >
+          {{ isGenerating() ? 'Generating...' : 'Generate document' }}
+        </button>
+
+        @if (generationError(); as error) {
+          <p class="message" role="alert">{{ error }}</p>
+        }
+
+        @if (generatedDocument(); as document) {
+          <p class="panel__result" role="status">Saved as {{ document.name }}</p>
+        }
+      </section>
+    </div>
+
+    <section class="panel panel--data" aria-labelledby="personal-data-title">
+      <header class="panel__header panel__header--sticky">
+        <div>
+          <h2 id="personal-data-title">Personal data</h2>
+          <p>Recognized and manually entered values are preserved.</p>
+        </div>
+        <button
+          class="button button--secondary button--compact"
+          data-testid="new-user"
+          type="button"
+          [disabled]="isRecognizing() || isGenerating()"
+          (click)="onNewUser()"
+        >
+          New user
+        </button>
       </header>
 
-      @if (selectedTemplate(); as template) {
-        <p class="panel__file-name" [title]="template.name">{{ template.name }}</p>
-      } @else {
-        <p class="panel__file-name">No DOCX template selected.</p>
+      @if (isConfirmingReset()) {
+        <div class="reset-confirmation" role="alert">
+          <span>Clear all data for the current user?</span>
+          <div class="reset-confirmation__actions">
+            <button
+              class="button button--danger button--compact"
+              data-testid="confirm-new-user"
+              type="button"
+              (click)="onConfirmNewUser()"
+            >
+              Clear
+            </button>
+            <button
+              class="button button--secondary button--compact"
+              data-testid="cancel-new-user"
+              type="button"
+              (click)="onCancelNewUser()"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       }
 
-      @if (templateSelectionError(); as error) {
-        <p class="message" role="alert">{{ error }}</p>
+      @if (isRecognizing()) {
+        <p class="status" aria-live="polite">Reading {{ documentTypeLabel }}...</p>
       }
 
-      <button
-        class="button button--primary button--wide"
-        type="button"
-        [disabled]="
-          !selectedTemplate() || !hasRecognizedData() || isRecognizing() || isGenerating()
-        "
-        (click)="onGenerateDocument()"
-      >
-        {{ isGenerating() ? 'Generating...' : 'Generate document' }}
-      </button>
+      <form class="personal-form" [formGroup]="personalForm">
+        <fieldset>
+          <legend>Personal details</legend>
 
-      @if (generationError(); as error) {
-        <p class="message" role="alert">{{ error }}</p>
-      }
+          <label class="personal-form__field">
+            <span>Surname</span>
+            <input type="text" formControlName="surname" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Given name</span>
+            <input type="text" formControlName="givenName" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Date of birth</span>
+            <input
+              type="text"
+              formControlName="dateOfBirth"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </label>
+          <label class="personal-form__field">
+            <span>Place of birth</span>
+            <input type="text" formControlName="placeOfBirth" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Nationality</span>
+            <input type="text" formControlName="currentNationality" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Sex</span>
+            <input type="text" formControlName="sex" autocomplete="off" />
+          </label>
+        </fieldset>
 
-      @if (generatedDocument(); as document) {
-        <p class="panel__result" role="status">Saved as {{ document.name }}</p>
-      }
+        <fieldset>
+          <legend>Documents</legend>
+
+          <label class="personal-form__field">
+            <span>Passport number</span>
+            <input type="text" formControlName="numberOfTravelDocument" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Issued by country</span>
+            <input type="text" formControlName="issuedByCountry" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Passport issue date</span>
+            <input
+              type="text"
+              formControlName="dateOfIssue"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </label>
+          <label class="personal-form__field">
+            <span>Passport valid until</span>
+            <input
+              type="text"
+              formControlName="validUntil"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </label>
+          <label class="personal-form__field">
+            <span>Residence permit ID</span>
+            <input type="text" formControlName="residencepermitID" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Visa ID</span>
+            <input type="text" formControlName="visaID" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Visa valid until</span>
+            <input
+              type="text"
+              formControlName="visaValidUntil"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </label>
+          <label class="personal-form__field">
+            <span>Occupation</span>
+            <input type="text" formControlName="currentOccupation" autocomplete="off" />
+          </label>
+          <label class="personal-form__field personal-form__field--wide">
+            <span>Employer</span>
+            <input type="text" formControlName="employer" autocomplete="off" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contacts</legend>
+
+          <label class="personal-form__field">
+            <span>Email</span>
+            <input type="email" formControlName="email" autocomplete="email" />
+          </label>
+          <label class="personal-form__field">
+            <span>Phone</span>
+            <input type="tel" formControlName="phone" autocomplete="tel" />
+          </label>
+          <label class="personal-form__field personal-form__field--wide">
+            <span>Address</span>
+            <input type="text" formControlName="address" autocomplete="street-address" />
+          </label>
+        </fieldset>
+      </form>
     </section>
   </div>
 </main>

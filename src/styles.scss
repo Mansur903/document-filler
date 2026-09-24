@@ -36,3 +36,97 @@ button,
 input {
   font: inherit;
 }
+
+.button {
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.6rem 0.8rem;
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  &--primary {
+    background: var(--tmt-color-primary);
+    color: var(--tmt-color-on-primary);
+  }
+
+  &--secondary {
+    background: var(--tmt-color-surface);
+    border-color: var(--tmt-color-border);
+    color: var(--tmt-color-text);
+  }
+
+  &--danger {
+    background: var(--tmt-color-danger-soft);
+    color: var(--tmt-color-danger);
+  }
+
+  &--compact {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  &--wide {
+    width: 100%;
+  }
+}
+
+.document-type {
+  border: 0;
+  margin: 0;
+  padding: 0;
+
+  legend {
+    color: var(--tmt-color-text-muted);
+    font-size: 0.75rem;
+    margin-bottom: 0.35rem;
+  }
+
+  &__options {
+    background: var(--tmt-color-surface-muted);
+    border-radius: 0.45rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0.2rem;
+
+    label {
+      cursor: pointer;
+      display: grid;
+    }
+
+    input {
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+    }
+
+    span {
+      border: 1px solid transparent;
+      border-radius: 0.35rem;
+      font-size: 0.78rem;
+      padding: 0.5rem;
+      text-align: center;
+    }
+
+    input:checked + span {
+      background: var(--tmt-color-surface);
+      border-color: var(--tmt-color-border);
+      color: var(--tmt-color-primary);
+      font-weight: 600;
+    }
+
+    input:focus-visible + span {
+      box-shadow: 0 0 0 2px var(--tmt-color-primary-soft);
+    }
+  }
+}
+
+@media (max-width: 34rem) {
+  .document-type__options {
+    grid-template-columns: 1fr;
+  }
+}

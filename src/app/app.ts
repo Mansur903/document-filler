@@ -1,12 +1,23 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
-import type { PassportData } from './models/api.model';
+import type { PassportData, RecognizedDocumentData, ResidencePermitData } from './models/api.model';
 import type {
+  DocumentType,
   GeneratedDocument,
-  SelectedPassportFile,
+  SelectedDocumentFile,
   SelectedTemplate,
 } from './models/ui.model';
+
+type RecognizedField = keyof PassportData | keyof ResidencePermitData;
+
+const DATE_FIELDS: ReadonlySet<RecognizedField> = new Set([
+  'dateOfBirth',
+  'dateOfIssue',
+  'validUntil',
+  'visaValidUntil',
+]);
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -16,37 +27,54 @@ import type {
   templateUrl: './app.html',
 })
 export class App {
+  protected readonly documentType = signal<DocumentType>('passport');
   protected readonly generatedDocument = signal<GeneratedDocument | null>(null);
   protected readonly generationError = signal<string | null>(null);
-  protected readonly hasRecognizedData = signal(false);
+  protected readonly isConfirmingReset = signal(false);
   protected readonly isGenerating = signal(false);
   protected readonly isRecognizing = signal(false);
   protected readonly isSelecting = signal(false);
   protected readonly isSelectingTemplate = signal(false);
-  protected readonly passportForm = new FormGroup({
+  protected readonly personalForm = new FormGroup({
+    address: new FormControl('', { nonNullable: true }),
     currentNationality: new FormControl('', { nonNullable: true }),
+    currentOccupation: new FormControl('', { nonNullable: true }),
     dateOfBirth: new FormControl('', { nonNullable: true }),
     dateOfIssue: new FormControl('', { nonNullable: true }),
+    email: new FormControl('', { nonNullable: true }),
+    employer: new FormControl('', { nonNullable: true }),
     givenName: new FormControl('', { nonNullable: true }),
     issuedByCountry: new FormControl('', { nonNullable: true }),
     numberOfTravelDocument: new FormControl('', { nonNullable: true }),
+    phone: new FormControl('', { nonNullable: true }),
     placeOfBirth: new FormControl('', { nonNullable: true }),
+    residencepermitID: new FormControl('', { nonNullable: true }),
     sex: new FormControl('', { nonNullable: true }),
     surname: new FormControl('', { nonNullable: true }),
     validUntil: new FormControl('', { nonNullable: true }),
+    visaID: new FormControl('', { nonNullable: true }),
+    visaValidUntil: new FormControl('', { nonNullable: true }),
   });
   protected readonly recognitionError = signal<string | null>(null);
-  protected readonly selectedPassportFile = signal<SelectedPassportFile | null>(null);
+  protected readonly selectedDocumentFile = signal<SelectedDocumentFile | null>(null);
   protected readonly selectedTemplate = signal<SelectedTemplate | null>(null);
   protected readonly selectionError = signal<string | null>(null);
   protected readonly templateSelectionError = signal<string | null>(null);
 
-  /** Opens the native passport file picker and stores the selected file. */
-  protected async onSelectPassportFile(): Promise<void> {
+  protected get documentTypeLabel(): string {
+    return this.documentType() === 'passport' ? 'Russian passport' : 'UAE Residence Permit';
+  }
+
+  /** Selects the parser used for the next recognition. */
+  protected onDocumentTypeChange(documentType: DocumentType): void {
+    this.documentType.set(documentType);
+    this.recognitionError.set(null);
+  }
+
+  /** Opens the native document picker and stores safe file metadata. */
+  protected async onSelectDocumentFile(): Promise<void> {
     if (!window.electronAPI) {
-      this.selectionError.set(
-        'Passport file selection is available only in the desktop application.',
-      );
+      this.selectionError.set('Document selection is available only in the desktop application.');
       return;
     }
 
@@ -54,30 +82,26 @@ export class App {
     this.selectionError.set(null);
 
     try {
-      const passportFile = await window.electronAPI.selectPassportFile();
+      const documentFile = await window.electronAPI.selectDocumentFile();
 
-      if (passportFile) {
+      if (documentFile) {
         this.generatedDocument.set(null);
         this.generationError.set(null);
-        this.hasRecognizedData.set(false);
-        this.passportForm.reset();
         this.recognitionError.set(null);
-        this.selectedPassportFile.set(passportFile);
+        this.selectedDocumentFile.set(documentFile);
       }
     } catch {
       this.selectionError.set(
-        'The passport file could not be opened. Please try another JPG, JPEG, or PDF file.',
+        'The document could not be opened. Please try another JPG, JPEG, PNG, or PDF file.',
       );
     } finally {
       this.isSelecting.set(false);
     }
   }
 
-  /** Recognizes passport fields in the currently selected passport file. */
-  protected async onRecognizePassport(): Promise<void> {
-    const passportFile = this.selectedPassportFile();
-
-    if (!passportFile || this.isRecognizing()) {
+  /** Recognizes the selected document and fills only empty form fields. */
+  protected async onRecognizeDocument(): Promise<void> {
+    if (!this.selectedDocumentFile() || this.isRecognizing()) {
       return;
     }
 
@@ -85,13 +109,13 @@ export class App {
     this.recognitionError.set(null);
 
     try {
-      this.fillPassportForm(await window.electronAPI.recognizePassport());
+      const documentData = await window.electronAPI.recognizeDocument(this.documentType());
+      this.mergeRecognizedData(documentData);
       this.generatedDocument.set(null);
       this.generationError.set(null);
-      this.hasRecognizedData.set(true);
     } catch {
       this.recognitionError.set(
-        'The passport could not be recognized. Check the image and OCR setup.',
+        `${this.documentTypeLabel} could not be recognized. Check the file and OCR setup.`,
       );
     } finally {
       this.isRecognizing.set(false);
@@ -127,7 +151,7 @@ export class App {
 
   /** Generates and saves a DOCX document with the current form values. */
   protected async onGenerateDocument(): Promise<void> {
-    if (!this.hasRecognizedData() || !this.selectedTemplate() || this.isGenerating()) {
+    if (!this.selectedTemplate() || !this.hasFormValues() || this.isGenerating()) {
       return;
     }
 
@@ -136,7 +160,7 @@ export class App {
     this.generationError.set(null);
 
     try {
-      const document = await window.electronAPI.generateDocument(this.passportForm.getRawValue());
+      const document = await window.electronAPI.generateDocument(this.personalForm.getRawValue());
 
       if (document) {
         this.generatedDocument.set(document);
@@ -150,18 +174,63 @@ export class App {
     }
   }
 
-  private fillPassportForm(passport: PassportData): void {
-    this.passportForm.setValue({
-      currentNationality: passport.currentNationality ?? '',
-      dateOfBirth: passport.dateOfBirth ?? '',
-      dateOfIssue: passport.dateOfIssue ?? '',
-      givenName: passport.givenName ?? '',
-      issuedByCountry: passport.issuedByCountry ?? '',
-      numberOfTravelDocument: passport.numberOfTravelDocument ?? '',
-      placeOfBirth: passport.placeOfBirth ?? '',
-      sex: passport.sex ?? '',
-      surname: passport.surname ?? '',
-      validUntil: passport.validUntil ?? '',
-    });
+  /** Requests confirmation before clearing non-empty user data. */
+  protected async onNewUser(): Promise<void> {
+    if (this.hasFormValues()) {
+      this.isConfirmingReset.set(true);
+      return;
+    }
+
+    await this.resetUserWorkspace();
+  }
+
+  /** Confirms and performs the pending user reset. */
+  protected async onConfirmNewUser(): Promise<void> {
+    this.isConfirmingReset.set(false);
+    await this.resetUserWorkspace();
+  }
+
+  /** Cancels the pending user reset. */
+  protected onCancelNewUser(): void {
+    this.isConfirmingReset.set(false);
+  }
+
+  /** Returns whether the shared form contains at least one non-empty value. */
+  protected hasFormValues(): boolean {
+    return Object.values(this.personalForm.getRawValue()).some((value) => value.trim() !== '');
+  }
+
+  private mergeRecognizedData(documentData: RecognizedDocumentData): void {
+    for (const [field, value] of Object.entries(documentData) as [
+      RecognizedField,
+      string | null,
+    ][]) {
+      const control = this.personalForm.controls[field];
+
+      if (control.value === '' && value?.trim()) {
+        const recognizedValue = value.trim();
+        const dateParts = DATE_FIELDS.has(field) ? ISO_DATE_PATTERN.exec(recognizedValue) : null;
+        control.setValue(
+          dateParts ? `${dateParts[3]}.${dateParts[2]}.${dateParts[1]}` : recognizedValue,
+        );
+      }
+    }
+  }
+
+  private async resetUserWorkspace(): Promise<void> {
+    try {
+      await window.electronAPI?.resetUserSession();
+    } catch {
+      this.selectionError.set('The current user could not be reset. Please try again.');
+      return;
+    }
+
+    this.documentType.set('passport');
+    this.generatedDocument.set(null);
+    this.generationError.set(null);
+    this.personalForm.reset();
+    this.recognitionError.set(null);
+    this.selectedDocumentFile.set(null);
+    this.selectionError.set(null);
   }
 }

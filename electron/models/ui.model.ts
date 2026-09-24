@@ -1,13 +1,14 @@
+export type DocumentFileType = 'image' | 'pdf';
+export type DocumentType = 'passport' | 'uaeResidencePermit';
+
 export interface GeneratedDocument {
   readonly name: string;
 }
 
-export type PassportFileType = 'image' | 'pdf';
-
-export interface SelectedPassportFile {
+export interface SelectedDocumentFile {
   readonly name: string;
   readonly previewDataUrl: string | null;
-  readonly type: PassportFileType;
+  readonly type: DocumentFileType;
 }
 
 export interface SelectedTemplate {
