@@ -66,7 +66,9 @@ class RecognizeDocumentTest(unittest.TestCase):
         self.assertEqual(data["visaValidUntil"], "2027-08-28")
 
     def test_returns_empty_permit_result_when_no_page_has_anchors(self) -> None:
-        data = _select_document_page([result(["Unrelated page"])], "uaeResidencePermit")
+        data = _select_document_page(
+            [result(["Unrelated page"])], "uaeResidencePermit"
+        )
 
         self.assertTrue(all(value is None for value in data.values()))
 

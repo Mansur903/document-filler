@@ -8,9 +8,12 @@ import shutil
 import subprocess
 import sys
 
+from ocr_config import (
+    OCR_MODEL_PROFILES,
+    create_pipeline_settings,
+    get_required_model_names,
+)
 
-DETECTION_MODEL_NAME = "PP-OCRv6_tiny_det"
-RECOGNITION_MODEL_NAME = "cyrillic_PP-OCRv5_mobile_rec"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BUILD_ROOT = PROJECT_ROOT / ".ocr-build"
 OCR_OUTPUT = BUILD_ROOT / "ocr"
@@ -34,23 +37,17 @@ def _ensure_models_are_downloaded() -> None:
 
     from paddleocr import PaddleOCR
 
-    PaddleOCR(
-        device="cpu",
-        text_detection_model_name=DETECTION_MODEL_NAME,
-        text_recognition_model_name=RECOGNITION_MODEL_NAME,
-        use_doc_orientation_classify=False,
-        use_doc_unwarping=False,
-        use_textline_orientation=False,
-    )
+    for profile in OCR_MODEL_PROFILES:
+        PaddleOCR(**create_pipeline_settings(profile))
 
     if not _models_exist():
         raise FileNotFoundError(f"OCR models were not downloaded to {MODEL_CACHE}")
 
 
-def _models_exist() -> bool:
+def _models_exist(model_cache: Path = MODEL_CACHE) -> bool:
     return all(
-        (MODEL_CACHE / model_name).is_dir()
-        for model_name in (DETECTION_MODEL_NAME, RECOGNITION_MODEL_NAME)
+        (model_cache / model_name).is_dir()
+        for model_name in get_required_model_names()
     )
 
 
@@ -73,16 +70,18 @@ def _build_executable() -> None:
     )
 
 
-def _copy_models() -> None:
-    destination = OCR_OUTPUT / "models"
+def _copy_models(
+    model_cache: Path = MODEL_CACHE, ocr_output: Path = OCR_OUTPUT
+) -> None:
+    destination = ocr_output / "models"
 
     if destination.exists():
         shutil.rmtree(destination)
 
     destination.mkdir(parents=True)
 
-    for model_name in (DETECTION_MODEL_NAME, RECOGNITION_MODEL_NAME):
-        shutil.copytree(MODEL_CACHE / model_name, destination / model_name)
+    for model_name in get_required_model_names():
+        shutil.copytree(model_cache / model_name, destination / model_name)
 
 
 if __name__ == "__main__":

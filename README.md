@@ -57,7 +57,7 @@ Build the application, the standalone OCR runtime, and the NSIS installer:
 npm run package:win
 ```
 
-The installer is created in `release`. It contains the Python runtime, PaddleOCR, and both OCR models, so the destination computer does not need Python, Node.js, or an internet connection.
+The installer is created in `release`. It contains the Python runtime, PaddleOCR, the shared detector, and both recognition models, so the destination computer does not need Python, Node.js, or an internet connection.
 
 ## DOCX templates
 

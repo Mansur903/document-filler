@@ -9,6 +9,11 @@ import traceback
 from typing import Any, cast
 
 from mrz_parser import parse_passport_data
+from ocr_config import (
+    create_pipeline_settings,
+    get_primary_profile,
+    get_required_model_names,
+)
 from passport_data_model import (
     DocumentType,
     OcrTextBlock,
@@ -24,8 +29,6 @@ from residence_permit_parser import (
 RESULT_PREFIX = "OCR_RESULT:"
 DOCUMENT_TYPES: tuple[DocumentType, ...] = ("passport", "uaeResidencePermit")
 SUPPORTED_EXTENSIONS = {".jpeg", ".jpg", ".pdf", ".png"}
-DETECTION_MODEL_NAME = "PP-OCRv6_tiny_det"
-RECOGNITION_MODEL_NAME = "cyrillic_PP-OCRv5_mobile_rec"
 
 
 def recognize_document(
@@ -37,27 +40,9 @@ def recognize_document(
     with redirect_stdout(sys.stderr):
         from paddleocr import PaddleOCR
 
+        profile = get_primary_profile(document_type)
         model_root = _get_bundled_model_root()
-        model_settings = (
-            {
-                "text_detection_model_name": DETECTION_MODEL_NAME,
-                "text_detection_model_dir": str(model_root / DETECTION_MODEL_NAME),
-                "text_recognition_model_name": RECOGNITION_MODEL_NAME,
-                "text_recognition_model_dir": str(model_root / RECOGNITION_MODEL_NAME),
-            }
-            if model_root
-            else {
-                "text_detection_model_name": DETECTION_MODEL_NAME,
-                "text_recognition_model_name": RECOGNITION_MODEL_NAME,
-            }
-        )
-        ocr = PaddleOCR(
-            device="cpu",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            **model_settings,
-        )
+        ocr = PaddleOCR(**create_pipeline_settings(profile, model_root))
         results = ocr.predict(str(document_file_path))
 
     return _select_document_page(results, document_type)
@@ -115,7 +100,11 @@ def _extract_text_blocks(result: Any) -> list[OcrTextBlock]:
         if not recognized_text:
             continue
 
-        raw_box = recognized_boxes[index] if recognized_boxes is not None else (0, index, 0, index)
+        raw_box = (
+            recognized_boxes[index]
+            if recognized_boxes is not None
+            else (0, index, 0, index)
+        )
         box = tuple(int(value) for value in raw_box[:4])
         blocks.append({"box": box, "text": recognized_text})
 
@@ -127,10 +116,12 @@ def _get_bundled_model_root() -> Path | None:
         return None
 
     model_root = Path(sys.executable).resolve().parent / "models"
-    required_models = (DETECTION_MODEL_NAME, RECOGNITION_MODEL_NAME)
 
-    if not all((model_root / model_name).is_dir() for model_name in required_models):
-        raise FileNotFoundError(f"OCR models are missing from {model_root}")
+    if not all(
+        (model_root / model_name).is_dir()
+        for model_name in get_required_model_names()
+    ):
+        raise FileNotFoundError("Required OCR models are missing.")
 
     return model_root
 
@@ -164,7 +155,9 @@ def main() -> int:
 
     try:
         document_type = _validate_document_type(sys.argv[1])
-        document_data = recognize_document(_validate_input_path(sys.argv[2]), document_type)
+        document_data = recognize_document(
+            _validate_input_path(sys.argv[2]), document_type
+        )
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
         print(f"OCR failed: {error}", file=sys.stderr)
