@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 
-import type { ElectronAPI, PassportData, ResidencePermitData } from './models/api.model';
+import type { ElectronAPI, InternalPassportData, PassportData, ResidencePermitData } from './models/api.model';
 import { App } from './app';
 
 const passportData: PassportData = {
@@ -23,6 +23,19 @@ const permitData: ResidencePermitData = {
   residencepermitID: '784200910498284',
   visaID: '201/2024/3821949',
   visaValidUntil: '2027-08-28',
+};
+const internalPassportData: InternalPassportData = {
+  authority: 'Example district office',
+  dateOfBirth: '1990-01-01',
+  dateOfIssue: '2019-02-11',
+  givenName: 'Ivan',
+  internalPassportNumber: '567890',
+  internalPassportSeries: '1234',
+  patronymic: 'Sergeevich',
+  placeOfBirth: 'Example city',
+  sex: 'M',
+  subdivisionCode: '123-456',
+  surname: 'Ivanov',
 };
 
 describe('App', () => {
@@ -55,8 +68,14 @@ describe('App', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Document Filler');
-    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(19);
+    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(23);
+    expect(compiled.textContent).toContain('Russian Foreign Passport');
+    expect(compiled.textContent).toContain('Russian Internal Passport');
     expect(input(compiled, 'authority').value).toBe('');
+    expect(input(compiled, 'patronymic').value).toBe('');
+    expect(input(compiled, 'internalPassportSeries').value).toBe('');
+    expect(input(compiled, 'internalPassportNumber').value).toBe('');
+    expect(input(compiled, 'subdivisionCode').value).toBe('');
     expect(input(compiled, 'email').value).toBe('');
     expect(input(compiled, 'address').value).toBe('');
     expect(input(compiled, 'phone').value).toBe('');
@@ -155,6 +174,72 @@ describe('App', () => {
     setInput(input(compiled, 'surname'), '');
     await click(fixture, '[data-testid="recognize-document"]');
     expect(input(compiled, 'surname').value).toBe('Ivanov');
+  });
+
+  it('merges foreign then internal passport without replacing shared values', async () => {
+    vi.mocked(electronAPI.selectDocumentFile).mockResolvedValue({
+      name: 'document.png',
+      previewDataUrl: null,
+      type: 'image',
+    });
+    vi.mocked(electronAPI.recognizeDocument).mockImplementation(async (documentType) =>
+      documentType === 'russianInternalPassport' ? internalPassportData : passportData,
+    );
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await click(fixture, '[data-testid="select-document"]');
+    await click(fixture, '[data-testid="recognize-document"]');
+    const compiled = fixture.nativeElement as HTMLElement;
+    setInput(input(compiled, 'authority'), 'Manual authority');
+    input(compiled, 'input[value="russianInternalPassport"]').click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('[data-testid="recognize-document"]')?.textContent)
+      .toContain('Russian Internal Passport');
+    await click(fixture, '[data-testid="recognize-document"]');
+
+    expect(electronAPI.recognizeDocument).toHaveBeenLastCalledWith('russianInternalPassport');
+    expect(input(compiled, 'surname').value).toBe('Ivanov');
+    expect(input(compiled, 'authority').value).toBe('Manual authority');
+    expect(input(compiled, 'numberOfTravelDocument').value).toBe('123456789');
+    expect(input(compiled, 'internalPassportSeries').value).toBe('1234');
+    expect(input(compiled, 'internalPassportNumber').value).toBe('567890');
+    expect(input(compiled, 'subdivisionCode').value).toBe('123-456');
+    expect(input(compiled, 'patronymic').value).toBe('Sergeevich');
+  });
+
+  it('merges internal then foreign passport and clears new fields for a new user', async () => {
+    vi.mocked(electronAPI.selectDocumentFile).mockResolvedValue({
+      name: 'document.pdf',
+      previewDataUrl: null,
+      type: 'pdf',
+    });
+    vi.mocked(electronAPI.recognizeDocument).mockImplementation(async (documentType) =>
+      documentType === 'russianInternalPassport' ? internalPassportData : passportData,
+    );
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await click(fixture, '[data-testid="select-document"]');
+    const compiled = fixture.nativeElement as HTMLElement;
+    input(compiled, 'input[value="russianInternalPassport"]').click();
+    fixture.detectChanges();
+    await click(fixture, '[data-testid="recognize-document"]');
+    setInput(input(compiled, 'patronymic'), 'Manual patronymic');
+    input(compiled, 'input[value="passport"]').click();
+    fixture.detectChanges();
+    expect(compiled.querySelector('[data-testid="recognize-document"]')?.textContent)
+      .toContain('Russian Foreign Passport');
+    await click(fixture, '[data-testid="recognize-document"]');
+
+    expect(input(compiled, 'patronymic').value).toBe('Manual patronymic');
+    expect(input(compiled, 'internalPassportNumber').value).toBe('567890');
+    expect(input(compiled, 'numberOfTravelDocument').value).toBe('123456789');
+    expect(input(compiled, 'dateOfIssue').value).toBe('11.02.2019');
+    await click(fixture, '[data-testid="new-user"]');
+    await click(fixture, '[data-testid="confirm-new-user"]');
+    expect(input(compiled, 'patronymic').value).toBe('');
+    expect(input(compiled, 'internalPassportSeries').value).toBe('');
+    expect(input(compiled, 'internalPassportNumber').value).toBe('');
+    expect(input(compiled, 'subdivisionCode').value).toBe('');
   });
 
   it('keeps form values when file selection is replaced, cancelled, or fails', async () => {

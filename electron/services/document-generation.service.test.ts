@@ -19,13 +19,17 @@ const personalData: PersonalFormData = {
   email: '',
   employer: 'Example Company',
   givenName: 'Ivan',
+  internalPassportNumber: '567890',
+  internalPassportSeries: '1234',
   issuedByCountry: 'RUS',
   numberOfTravelDocument: '123456789',
+  patronymic: 'Sergeevich',
   phone: '',
   placeOfBirth: 'Moscow',
   residencepermitID: '784200910498284',
   sex: 'M',
   surname: 'Ivanov',
+  subdivisionCode: '123-456',
   validUntil: '2030-01-03',
   visaID: '201/2024/3821949',
   visaValidUntil: '2027-08-28',
@@ -43,6 +47,10 @@ test('generates all personal placeholders and formats both validity dates', asyn
     assert.ok(documentXml);
     assert.match(documentXml, /FMS 12345/);
     assert.match(documentXml, /Ivanov/);
+    assert.match(documentXml, /Sergeevich/);
+    assert.match(documentXml, /1234/);
+    assert.match(documentXml, /567890/);
+    assert.match(documentXml, /123-456/);
     assert.match(documentXml, /784200910498284/);
     assert.match(documentXml, /201\/2024\/3821949/);
     assert.match(documentXml, /03\.01\.2030/);
@@ -88,7 +96,7 @@ test('renders custom values, leaves deleted placeholders, and keeps date formatt
 });
 
 function createTemplate(
-  placeholders = '{surname}|{authority}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}',
+  placeholders = '{surname}|{patronymic}|{internalPassportSeries}|{internalPassportNumber}|{subdivisionCode}|{authority}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}',
 ): Buffer {
   const archive = new PizZip();
   archive.file(

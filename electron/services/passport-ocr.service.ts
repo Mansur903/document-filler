@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import type {
+  InternalPassportData,
   PassportData,
   RecognizedDocumentData,
   ResidencePermitData,
@@ -24,6 +25,19 @@ const PASSPORT_DATA_FIELDS: readonly (keyof PassportData)[] = [
   'sex',
   'surname',
   'validUntil',
+];
+const INTERNAL_PASSPORT_DATA_FIELDS: readonly (keyof InternalPassportData)[] = [
+  'authority',
+  'dateOfBirth',
+  'dateOfIssue',
+  'givenName',
+  'internalPassportNumber',
+  'internalPassportSeries',
+  'patronymic',
+  'placeOfBirth',
+  'sex',
+  'subdivisionCode',
+  'surname',
 ];
 const RESIDENCE_PERMIT_DATA_FIELDS: readonly (keyof ResidencePermitData)[] = [
   'currentOccupation',
@@ -61,7 +75,6 @@ export async function recognizeDocument(
     windowsHide: true,
   });
 
-  console.log('Python stdout:', stdout);
   const resultLine = stdout.split(/\r?\n/).find((line) => line.startsWith(OCR_RESULT_PREFIX));
 
   if (!resultLine) {
@@ -77,7 +90,13 @@ export async function recognizeDocument(
   return documentData;
 }
 
-function isRecognizedDocumentData(
+/**
+ * Checks that an OCR payload has exactly the fields for the selected document type.
+ * @param value Parsed OCR payload.
+ * @param documentType Selected document type.
+ * @returns Whether the payload matches the selected document contract.
+ */
+export function isRecognizedDocumentData(
   value: unknown,
   documentType: DocumentType,
 ): value is RecognizedDocumentData {
@@ -85,10 +104,14 @@ function isRecognizedDocumentData(
     return false;
   }
 
-  const fields = documentType === 'passport' ? PASSPORT_DATA_FIELDS : RESIDENCE_PERMIT_DATA_FIELDS;
+  const fields = documentType === 'passport'
+    ? PASSPORT_DATA_FIELDS
+    : documentType === 'russianInternalPassport'
+      ? INTERNAL_PASSPORT_DATA_FIELDS
+      : RESIDENCE_PERMIT_DATA_FIELDS;
   const data = value as Record<string, unknown>;
 
-  return fields.every((field) => {
+  return Object.keys(data).length === fields.length && fields.every((field) => {
     const fieldValue = data[field];
     return fieldValue === null || typeof fieldValue === 'string';
   });

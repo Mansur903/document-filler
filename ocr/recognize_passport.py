@@ -8,6 +8,7 @@ import sys
 import traceback
 from typing import Any, cast
 
+from internal_passport_parser import merge_internal_passport_pages, page_anchor_groups
 from mrz_parser import parse_passport_data
 from ocr_config import (
     create_pipeline_settings,
@@ -16,6 +17,7 @@ from ocr_config import (
 )
 from passport_data_model import (
     DocumentType,
+    InternalPassportData,
     OcrTextBlock,
     PassportData,
     ResidencePermitData,
@@ -27,13 +29,15 @@ from residence_permit_parser import (
 
 
 RESULT_PREFIX = "OCR_RESULT:"
-DOCUMENT_TYPES: tuple[DocumentType, ...] = ("passport", "uaeResidencePermit")
+DOCUMENT_TYPES: tuple[DocumentType, ...] = (
+    "passport", "russianInternalPassport", "uaeResidencePermit"
+)
 SUPPORTED_EXTENSIONS = {".jpeg", ".jpg", ".pdf", ".png"}
 
 
 def recognize_document(
     document_file_path: Path, document_type: DocumentType
-) -> PassportData | ResidencePermitData:
+) -> PassportData | InternalPassportData | ResidencePermitData:
     os.environ.setdefault("PADDLE_PDX_MODEL_SOURCE", "bos")
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
@@ -43,18 +47,105 @@ def recognize_document(
         profile = get_primary_profile(document_type)
         model_root = _get_bundled_model_root()
         ocr = PaddleOCR(**create_pipeline_settings(profile, model_root))
-        results = ocr.predict(str(document_file_path))
+        results = (
+            _predict_internal_pdf_pages(ocr, document_file_path)
+            if document_type == "russianInternalPassport"
+            and document_file_path.suffix.lower() == ".pdf"
+            else list(ocr.predict(str(document_file_path)))
+        )
+
+        if document_type == "russianInternalPassport":
+            pages = [_extract_text_blocks(result) for result in results]
+            parsed = merge_internal_passport_pages(pages)
+            if parsed["internalPassportNumber"] is None:
+                supplemental = _read_rotated_side_numbers(
+                    ocr, document_file_path, pages
+                )
+                if supplemental:
+                    return merge_internal_passport_pages(pages, supplemental)
 
     return _select_document_page(results, document_type)
 
 
 def _select_document_page(
     results: Any, document_type: DocumentType
-) -> PassportData | ResidencePermitData:
+) -> PassportData | InternalPassportData | ResidencePermitData:
     if document_type == "passport":
         return _select_passport_page(results)
+    if document_type == "russianInternalPassport":
+        return _select_internal_passport_pages(results)
 
     return _select_residence_permit_page(results)
+
+
+def _select_internal_passport_pages(results: Any) -> InternalPassportData:
+    pages = [_extract_text_blocks(result) for result in results]
+    if not pages:
+        raise ValueError("OCR returned no document pages.")
+    return merge_internal_passport_pages(pages)
+
+
+def _predict_internal_pdf_pages(ocr: Any, document_file_path: Path) -> list[Any]:
+    """Renders internal-passport PDF pages at a readable resolution."""
+    import numpy as np
+    import pypdfium2
+
+    results: list[Any] = []
+    with pypdfium2.PdfDocument(str(document_file_path)) as pdf:
+        for index in range(len(pdf)):
+            page = pdf[index]
+            try:
+                scale = min(1.5, 3000 / max(page.get_size()))
+                image = page.render(scale=scale).to_pil().convert("RGB")
+                results.extend(ocr.predict(np.asarray(image)))
+            finally:
+                page.close()
+    return results
+
+
+def _read_rotated_side_numbers(
+    ocr: Any, document_file_path: Path, pages: list[list[OcrTextBlock]]
+) -> dict[int, list[str]]:
+    """Retries only the side strip of relevant pages in both orientations."""
+    from PIL import Image
+    import numpy as np
+
+    relevant_indexes = [
+        index for index, blocks in enumerate(pages) if any(page_anchor_groups(blocks))
+    ]
+    if not relevant_indexes:
+        return {}
+
+    strips: dict[int, Image.Image] = {}
+    try:
+        if document_file_path.suffix.lower() == ".pdf":
+            import pypdfium2
+
+            with pypdfium2.PdfDocument(str(document_file_path)) as pdf:
+                for index in relevant_indexes:
+                    page = pdf[index]
+                    try:
+                        strips[index] = page.render(scale=1.5).to_pil().copy()
+                    finally:
+                        page.close()
+        else:
+            with Image.open(document_file_path) as source:
+                strips[0] = source.copy()
+
+        recognized: dict[int, list[str]] = {}
+        for index, image in strips.items():
+            left = int(image.width * 0.80)
+            side = image.crop((left, 0, image.width, image.height))
+            texts: list[str] = []
+            for angle in (90, 270):
+                rotated = side.rotate(angle, expand=True).convert("RGB")
+                for result in ocr.predict(np.asarray(rotated)):
+                    texts.extend(str(text) for text in result.get("rec_texts", []))
+            if texts:
+                recognized[index] = texts
+        return recognized
+    except Exception:
+        return {}
 
 
 def _select_passport_page(results: Any) -> PassportData:

@@ -34,7 +34,11 @@ import { selectRememberedFile, validateReadableTemplatePath } from './services/f
 import { recognizeDocument } from './services/passport-ocr.service';
 
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
-const DOCUMENT_TYPES: readonly DocumentType[] = ['passport', 'uaeResidencePermit'];
+const DOCUMENT_TYPES: readonly DocumentType[] = [
+  'passport',
+  'russianInternalPassport',
+  'uaeResidencePermit',
+];
 const SUPPORTED_DOCUMENT_FILE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.pdf', '.png']);
 let selectedDocumentFilePath: string | null = null;
 let selectedTemplatePath: string | null = null;

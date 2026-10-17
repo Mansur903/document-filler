@@ -38,7 +38,7 @@ This will compile your project and store the build artifacts in the `dist/` dire
 
 ## Local document OCR
 
-Russian international passport and UAE Residence Permit OCR run locally with Python 3.11, PaddlePaddle, and PaddleOCR. Select the matching document type in the application before recognizing a JPG, JPEG, PNG, or PDF file.
+Russian Foreign Passport, Russian Internal Passport, and UAE Residence Permit OCR run locally with Python 3.11, PaddlePaddle, and PaddleOCR. Select the matching document type in the application before recognizing a JPG, JPEG, PNG, or PDF file.
 
 Create the isolated environment and install the pinned development dependencies:
 
@@ -47,7 +47,7 @@ python -m venv .venv-ocr
 .\.venv-ocr\Scripts\python.exe -m pip install -r ocr\requirements-build.txt
 ```
 
-The OCR models are downloaded to the local PaddleX cache on first recognition. Recognized values are merged into the shared form without replacing non-empty OCR or manually entered values, so the two document types can be processed in either order. Use **New user** to clear the form and current input while keeping the selected DOCX template.
+The OCR models are downloaded to the local PaddleX cache on first recognition. Recognized values are merged into the shared form without replacing non-empty OCR or manually entered values, so the three document types can be processed in any order. Use **New user** to clear the form and current input while keeping the selected DOCX template.
 
 The document and DOCX template pickers remember their last selected folders independently, including after the application is closed and reopened. Canceling a picker leaves its remembered folder unchanged. If a folder no longer exists, the picker opens in its usual location.
 
@@ -65,7 +65,7 @@ Build the application, the standalone OCR runtime, and the NSIS installer:
 npm run package:win
 ```
 
-The installer is created in `release`. It contains the Python runtime, PaddleOCR, the shared detector, and both recognition models, so the destination computer does not need Python, Node.js, or an internet connection.
+The installer is created in `release`. It contains the Python runtime, PaddleOCR, the shared detector, and both recognition models, so the destination computer does not need Python, Node.js, or an internet connection. Both Russian passport types use the bundled Cyrillic recognition model.
 
 ## DOCX templates
 
@@ -74,11 +74,15 @@ Select a `.docx` template after entering or recognizing personal data. The templ
 ```text
 {surname}
 {givenName}
+{patronymic}
 {dateOfBirth}
 {placeOfBirth}
 {currentNationality}
 {sex}
 {numberOfTravelDocument}
+{internalPassportSeries}
+{internalPassportNumber}
+{subdivisionCode}
 {authority}
 {dateOfIssue}
 {validUntil}
@@ -93,7 +97,7 @@ Select a `.docx` template after entering or recognizing personal data. The templ
 {phone}
 ```
 
-The application uses the current editable form values and asks where to save the filled document. Passport `{validUntil}` and residence-permit `{visaValidUntil}` are independent fields. Dates are written as `DD.MM.YYYY`.
+The application uses the current editable form values and asks where to save the filled document. `{numberOfTravelDocument}` is the foreign passport number; `{internalPassportSeries}` and `{internalPassportNumber}` are separate internal passport values. The internal passport has no `{validUntil}` value. Passport `{validUntil}` and residence-permit `{visaValidUntil}` are independent fields. Dates are written as `DD.MM.YYYY`.
 
 ## Running unit tests
 

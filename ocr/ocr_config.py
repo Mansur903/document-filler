@@ -29,6 +29,7 @@ RESIDENCE_PERMIT_PROFILE = OcrModelProfile(
 OCR_MODEL_PROFILES = (PASSPORT_PROFILE, RESIDENCE_PERMIT_PROFILE)
 PRIMARY_PROFILES: dict[DocumentType, OcrModelProfile] = {
     "passport": PASSPORT_PROFILE,
+    "russianInternalPassport": PASSPORT_PROFILE,
     "uaeResidencePermit": RESIDENCE_PERMIT_PROFILE,
 }
 

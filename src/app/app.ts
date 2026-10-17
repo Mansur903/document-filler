@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, signal, viewChild } fro
 import type { OnInit } from '@angular/core';
 import { FormControl, FormGroup, FormRecord, ReactiveFormsModule } from '@angular/forms';
 
-import type { PassportData, RecognizedDocumentData, ResidencePermitData } from './models/api.model';
+import type { InternalPassportData, PassportData, RecognizedDocumentData, ResidencePermitData } from './models/api.model';
 import type {
   CustomFieldDefinition,
   DocumentType,
@@ -11,7 +11,7 @@ import type {
   SelectedTemplate,
 } from './models/ui.model';
 
-type RecognizedField = keyof PassportData | keyof ResidencePermitData;
+type RecognizedField = keyof PassportData | keyof InternalPassportData | keyof ResidencePermitData;
 
 const DATE_FIELDS: ReadonlySet<RecognizedField> = new Set([
   'dateOfBirth',
@@ -64,13 +64,17 @@ export class App implements OnInit {
     email: new FormControl('', { nonNullable: true }),
     employer: new FormControl('', { nonNullable: true }),
     givenName: new FormControl('', { nonNullable: true }),
+    internalPassportNumber: new FormControl('', { nonNullable: true }),
+    internalPassportSeries: new FormControl('', { nonNullable: true }),
     issuedByCountry: new FormControl('', { nonNullable: true }),
     numberOfTravelDocument: new FormControl('', { nonNullable: true }),
+    patronymic: new FormControl('', { nonNullable: true }),
     phone: new FormControl('', { nonNullable: true }),
     placeOfBirth: new FormControl('', { nonNullable: true }),
     residencepermitID: new FormControl('', { nonNullable: true }),
     sex: new FormControl('', { nonNullable: true }),
     surname: new FormControl('', { nonNullable: true }),
+    subdivisionCode: new FormControl('', { nonNullable: true }),
     validUntil: new FormControl('', { nonNullable: true }),
     visaID: new FormControl('', { nonNullable: true }),
     visaValidUntil: new FormControl('', { nonNullable: true }),
@@ -82,7 +86,14 @@ export class App implements OnInit {
   protected readonly templateSelectionError = signal<string | null>(null);
 
   protected get documentTypeLabel(): string {
-    return this.documentType() === 'passport' ? 'Russian passport' : 'UAE Residence Permit';
+    switch (this.documentType()) {
+      case 'passport':
+        return 'Russian Foreign Passport';
+      case 'russianInternalPassport':
+        return 'Russian Internal Passport';
+      case 'uaeResidencePermit':
+        return 'UAE Residence Permit';
+    }
   }
 
   /** Loads saved field definitions with empty session values. */

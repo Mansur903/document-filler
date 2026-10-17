@@ -27,7 +27,17 @@
                 [checked]="documentType() === 'passport'"
                 (change)="onDocumentTypeChange('passport')"
               />
-              <span>Russian passport</span>
+              <span>Russian Foreign Passport</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="documentType"
+                value="russianInternalPassport"
+                [checked]="documentType() === 'russianInternalPassport'"
+                (change)="onDocumentTypeChange('russianInternalPassport')"
+              />
+              <span>Russian Internal Passport</span>
             </label>
             <label>
               <input
@@ -209,6 +219,10 @@
             <input type="text" formControlName="givenName" autocomplete="off" />
           </label>
           <label class="personal-form__field">
+            <span>Patronymic</span>
+            <input type="text" formControlName="patronymic" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
             <span>Date of birth</span>
             <input
               type="text"
@@ -235,8 +249,20 @@
           <legend>Documents</legend>
 
           <label class="personal-form__field">
-            <span>Passport number</span>
+            <span>Foreign passport number</span>
             <input type="text" formControlName="numberOfTravelDocument" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Internal passport series</span>
+            <input type="text" formControlName="internalPassportSeries" inputmode="numeric" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Internal passport number</span>
+            <input type="text" formControlName="internalPassportNumber" inputmode="numeric" autocomplete="off" />
+          </label>
+          <label class="personal-form__field">
+            <span>Subdivision code</span>
+            <input type="text" formControlName="subdivisionCode" inputmode="numeric" autocomplete="off" />
           </label>
           <label class="personal-form__field">
             <span>Issued by country</span>
