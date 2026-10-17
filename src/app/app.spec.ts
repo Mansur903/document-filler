@@ -30,7 +30,10 @@ describe('App', () => {
 
   beforeEach(async () => {
     electronAPI = {
+      createCustomField: vi.fn().mockImplementation(async (definition) => [definition]),
+      deleteCustomField: vi.fn().mockResolvedValue([]),
       generateDocument: vi.fn().mockResolvedValue(null),
+      listCustomFields: vi.fn().mockResolvedValue([]),
       recognizeDocument: vi.fn().mockResolvedValue(passportData),
       resetUserSession: vi.fn().mockResolvedValue(undefined),
       selectDocumentFile: vi.fn().mockResolvedValue(null),
@@ -198,6 +201,126 @@ describe('App', () => {
     expect(input(compiled, 'email').value).toBe('');
     expect(compiled.textContent).toContain('template.docx');
   });
+
+  it('creates a custom field, sends its value to DOCX, and removes it', async () => {
+    vi.mocked(electronAPI.selectTemplate).mockResolvedValue({ name: 'template.docx' });
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    await click(fixture, '[data-testid="add-custom-field"]');
+    const dialog = compiled.querySelector<HTMLDialogElement>('.custom-field-dialog');
+    expect(dialog?.open).toBe(true);
+    expect(dialog?.querySelector('input')?.getAttribute('formControlName')).toBe('label');
+    setInput(input(dialog!, 'label'), 'Extra phone');
+    setInput(input(dialog!, 'name'), 'extraPhone');
+    await click(fixture, '.custom-field-dialog button[type="submit"]');
+
+    expect(electronAPI.createCustomField).toHaveBeenCalledWith({
+      label: 'Extra phone',
+      name: 'extraPhone',
+    });
+    expect(compiled.textContent).toContain('{extraPhone}');
+    setInput(customInput(compiled, 'extraPhone'), '12345');
+    await click(fixture, '[data-testid="select-template"]');
+    await click(fixture, '[data-testid="generate-document"]');
+    expect(electronAPI.generateDocument).toHaveBeenCalledWith(
+      expect.any(Object),
+      { extraPhone: '12345' },
+    );
+
+    await click(fixture, '[data-testid="delete-custom-field-extraPhone"]');
+    expect(electronAPI.deleteCustomField).toHaveBeenCalledWith('extraPhone');
+    expect(compiled.querySelector('[data-testid="custom-field-extraPhone"]')).toBeNull();
+  });
+
+  it('loads saved definitions with empty values and reports invalid creation', async () => {
+    vi.mocked(electronAPI.listCustomFields).mockResolvedValue([
+      { label: 'Extra phone', name: 'extraPhone' },
+    ]);
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(customInput(compiled, 'extraPhone').value).toBe('');
+
+    await click(fixture, '[data-testid="add-custom-field"]');
+    const dialog = compiled.querySelector<HTMLDialogElement>('.custom-field-dialog')!;
+    setInput(input(dialog, 'label'), 'Duplicate');
+    setInput(input(dialog, 'name'), 'EXTRAPHONE');
+    await click(fixture, '.custom-field-dialog button[type="submit"]');
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain('already used');
+    expect(electronAPI.createCustomField).not.toHaveBeenCalled();
+
+    setInput(input(dialog, 'name'), 'bad name');
+    await click(fixture, '.custom-field-dialog button[type="submit"]');
+    expect(dialog.textContent).toContain('must start with a letter');
+    await click(fixture, '.custom-field-dialog button[type="button"]');
+    expect(dialog.open).toBe(false);
+  });
+
+  it('focuses the creation dialog and closes it with Escape', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    await click(fixture, '[data-testid="add-custom-field"]');
+    const dialog = compiled.querySelector<HTMLDialogElement>('.custom-field-dialog')!;
+    expect(document.activeElement).toBe(input(dialog, 'label'));
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(compiled.querySelector('[data-testid="add-custom-field"]'));
+    expect(electronAPI.createCustomField).not.toHaveBeenCalled();
+  });
+
+  it('keeps a field visible when deletion cannot be saved', async () => {
+    vi.mocked(electronAPI.listCustomFields).mockResolvedValue([
+      { label: 'Extra phone', name: 'extraPhone' },
+    ]);
+    vi.mocked(electronAPI.deleteCustomField).mockRejectedValue(new Error('disk full'));
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    await click(fixture, '[data-testid="delete-custom-field-extraPhone"]');
+    expect(customInput(compiled, 'extraPhone')).toBeTruthy();
+    expect(compiled.textContent).toContain('could not be deleted');
+  });
+
+  it('clears only custom values for a new user and keeps definitions', async () => {
+    vi.mocked(electronAPI.listCustomFields).mockResolvedValue([
+      { label: 'Extra phone', name: 'extraPhone' },
+    ]);
+    vi.mocked(electronAPI.selectTemplate).mockResolvedValue({ name: 'template.docx' });
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    await click(fixture, '[data-testid="select-template"]');
+    setInput(customInput(compiled, 'extraPhone'), '12345');
+
+    await click(fixture, '[data-testid="new-user"]');
+    expect(compiled.querySelector('[data-testid="confirm-new-user"]')).toBeTruthy();
+    await click(fixture, '[data-testid="cancel-new-user"]');
+    expect(customInput(compiled, 'extraPhone').value).toBe('12345');
+    await click(fixture, '[data-testid="new-user"]');
+    await click(fixture, '[data-testid="confirm-new-user"]');
+
+    expect(customInput(compiled, 'extraPhone').value).toBe('');
+    expect(compiled.textContent).toContain('template.docx');
+    expect(compiled.textContent).toContain('{extraPhone}');
+  });
 });
 
 async function click(fixture: ComponentFixture<App>, selector: string): Promise<void> {
@@ -215,6 +338,16 @@ function input(root: HTMLElement, nameOrSelector: string): HTMLInputElement {
 
   if (!element) {
     throw new Error(`Input not found: ${nameOrSelector}`);
+  }
+
+  return element;
+}
+
+function customInput(root: HTMLElement, name: string): HTMLInputElement {
+  const element = root.querySelector<HTMLInputElement>(`[data-testid="custom-field-${name}"]`);
+
+  if (!element) {
+    throw new Error(`Custom input not found: ${name}`);
   }
 
   return element;

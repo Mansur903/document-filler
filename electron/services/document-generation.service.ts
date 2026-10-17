@@ -4,7 +4,7 @@ import PizZip from 'pizzip';
 
 import type { PersonalFormData } from '../models/api.model';
 
-const PERSONAL_FORM_FIELDS: readonly (keyof PersonalFormData)[] = [
+export const PERSONAL_FORM_FIELDS: readonly (keyof PersonalFormData)[] = [
   'address',
   'authority',
   'currentNationality',
@@ -30,12 +30,14 @@ const PERSONAL_FORM_FIELDS: readonly (keyof PersonalFormData)[] = [
  * Fills a DOCX template with passport form values.
  * @param templatePath Path to the selected DOCX template.
  * @param data Current editable personal form values.
+ * @param customValues Current values of saved custom fields.
  * @returns Generated DOCX contents.
  * @throws If the template cannot be read or rendered.
  */
 export async function generateDocument(
   templatePath: string,
   data: PersonalFormData,
+  customValues: Readonly<Record<string, string>> = {},
 ): Promise<Buffer> {
   const template = await readFile(templatePath);
   const document = new Docxtemplater(new PizZip(template), {
@@ -46,6 +48,7 @@ export async function generateDocument(
 
   document.render({
     ...data,
+    ...customValues,
     dateOfBirth: formatDate(data.dateOfBirth),
     dateOfIssue: formatDate(data.dateOfIssue),
     validUntil: formatDate(data.validUntil),

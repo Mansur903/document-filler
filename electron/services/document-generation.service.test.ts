@@ -62,7 +62,34 @@ test('validates the complete personal form payload', () => {
   assert.equal(isPersonalFormData({ surname: 'Ivanov' }), false);
 });
 
-function createTemplate(): Buffer {
+test('renders custom values, leaves deleted placeholders, and keeps date formatting', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'document-filler-'));
+  const templatePath = join(directory, 'custom-template.docx');
+
+  try {
+    await writeFile(
+      templatePath,
+      createTemplate('{extraPhone}|{emptyCustom}|{deletedField}|{validUntil}'),
+    );
+    const output = await generateDocument(templatePath, personalData, {
+      extraPhone: '12345',
+      emptyCustom: '',
+    });
+    const documentXml = new PizZip(output).file('word/document.xml')?.asText();
+
+    assert.ok(documentXml);
+    assert.match(documentXml, /12345/);
+    assert.doesNotMatch(documentXml, /\{extraPhone\}|\{emptyCustom\}/);
+    assert.match(documentXml, /\{deletedField\}/);
+    assert.match(documentXml, /03\.01\.2030/);
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+function createTemplate(
+  placeholders = '{surname}|{authority}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}',
+): Buffer {
   const archive = new PizZip();
   archive.file(
     '[Content_Types].xml',
@@ -85,7 +112,7 @@ function createTemplate(): Buffer {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
       '<w:body><w:p><w:r><w:t>' +
-      '{surname}|{authority}|{residencepermitID}|{visaID}|{validUntil}|{visaValidUntil}|{email}|{phone}' +
+      placeholders +
       '</w:t></w:r></w:p></w:body></w:document>',
   );
   archive.file(

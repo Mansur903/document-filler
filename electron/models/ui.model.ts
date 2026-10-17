@@ -1,6 +1,11 @@
 export type DocumentFileType = 'image' | 'pdf';
 export type DocumentType = 'passport' | 'uaeResidencePermit';
 
+export interface CustomFieldDefinition {
+  readonly label: string;
+  readonly name: string;
+}
+
 export interface GeneratedDocument {
   readonly name: string;
 }

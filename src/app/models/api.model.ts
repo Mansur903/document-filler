@@ -1,4 +1,5 @@
 import type {
+  CustomFieldDefinition,
   DocumentType,
   GeneratedDocument,
   SelectedDocumentFile,
@@ -6,7 +7,13 @@ import type {
 } from './ui.model';
 
 export interface ElectronAPI {
-  generateDocument(data: PersonalFormData): Promise<GeneratedDocument | null>;
+  createCustomField(definition: CustomFieldDefinition): Promise<readonly CustomFieldDefinition[]>;
+  deleteCustomField(name: string): Promise<readonly CustomFieldDefinition[]>;
+  generateDocument(
+    data: PersonalFormData,
+    customValues: Readonly<Record<string, string>>,
+  ): Promise<GeneratedDocument | null>;
+  listCustomFields(): Promise<readonly CustomFieldDefinition[]>;
   recognizeDocument(documentType: DocumentType): Promise<RecognizedDocumentData>;
   resetUserSession(): Promise<void>;
   selectDocumentFile(): Promise<SelectedDocumentFile | null>;

@@ -49,6 +49,14 @@ python -m venv .venv-ocr
 
 The OCR models are downloaded to the local PaddleX cache on first recognition. Recognized values are merged into the shared form without replacing non-empty OCR or manually entered values, so the two document types can be processed in either order. Use **New user** to clear the form and current input while keeping the selected DOCX template.
 
+The document and DOCX template pickers remember their last selected folders independently, including after the application is closed and reopened. Canceling a picker leaves its remembered folder unchanged. If a folder no longer exists, the picker opens in its usual location.
+
+## Custom fields
+
+Use **Add field** in the **Custom fields** section to create a text input. Enter a visible label and a template name such as `extraPhone`. Names must start with a Latin letter and contain only Latin letters, digits, or underscores. A name cannot duplicate a built-in or another custom field, regardless of letter case. Use `{extraPhone}` in a DOCX template to insert the current value. Custom fields can be deleted from the same section.
+
+Field labels and template names are saved between application launches. Values are not saved: they start empty when the application reopens and are cleared by **New user**, while the field definitions remain available.
+
 ## Windows installer
 
 Build the application, the standalone OCR runtime, and the NSIS installer:

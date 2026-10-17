@@ -1,9 +1,15 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import type { IpcMainInvokeEvent } from 'electron';
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 
 import {
+  CREATE_CUSTOM_FIELD_CHANNEL,
+  DELETE_CUSTOM_FIELD_CHANNEL,
   GENERATE_DOCUMENT_CHANNEL,
+  LIST_CUSTOM_FIELDS_CHANNEL,
   RECOGNIZE_DOCUMENT_CHANNEL,
   RESET_USER_SESSION_CHANNEL,
   SELECT_DOCUMENT_FILE_CHANNEL,
@@ -16,7 +22,15 @@ import type {
   SelectedDocumentFile,
   SelectedTemplate,
 } from './models/ui.model';
+import { AppSettingsStore } from './services/app-settings.service';
+import {
+  createCustomField,
+  deleteCustomField,
+  listCustomFields,
+  validateCustomFieldValues,
+} from './services/custom-fields.service';
 import { generateDocument, isPersonalFormData } from './services/document-generation.service';
+import { selectRememberedFile, validateReadableTemplatePath } from './services/file-selection.service';
 import { recognizeDocument } from './services/passport-ocr.service';
 
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
@@ -24,6 +38,7 @@ const DOCUMENT_TYPES: readonly DocumentType[] = ['passport', 'uaeResidencePermit
 const SUPPORTED_DOCUMENT_FILE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.pdf', '.png']);
 let selectedDocumentFilePath: string | null = null;
 let selectedTemplatePath: string | null = null;
+let settingsStore: AppSettingsStore | null = null;
 
 void app.whenReady().then(() => {
   createWindow();
@@ -50,36 +65,42 @@ ipcMain.handle(
       throw new Error('Document file selection must be requested by an application window.');
     }
 
-    const result = await dialog.showOpenDialog(requestingWindow, {
-      filters: [{ extensions: ['jpg', 'jpeg', 'png', 'pdf'], name: 'Document files' }],
-      properties: ['openFile'],
-      title: 'Select document file',
-    });
+    const selection = await selectRememberedFile(
+      getSettingsStore(),
+      'lastDocumentDirectory',
+      (defaultPath) => dialog.showOpenDialog(requestingWindow, {
+        ...(defaultPath ? { defaultPath } : {}),
+        filters: [{ extensions: ['jpg', 'jpeg', 'png', 'pdf'], name: 'Document files' }],
+        properties: ['openFile'],
+        title: 'Select document file',
+      }),
+      async (filePath) => {
+        const extension = extname(filePath).toLowerCase();
 
-    if (result.canceled || result.filePaths.length === 0) {
+        if (!SUPPORTED_DOCUMENT_FILE_EXTENSIONS.has(extension)) {
+          throw new Error('Only JPG, JPEG, PNG, and PDF document files are supported.');
+        }
+
+        await access(filePath, constants.R_OK);
+        const type = extension === '.pdf' ? 'pdf' : 'image';
+        const mediaType = extension === '.png' ? 'image/png' : 'image/jpeg';
+        const previewDataUrl = type === 'image'
+          ? `data:${mediaType};base64,${(await readFile(filePath)).toString('base64')}`
+          : null;
+
+        return {
+          filePath,
+          metadata: { name: basename(filePath), previewDataUrl, type } as SelectedDocumentFile,
+        };
+      },
+    );
+
+    if (!selection) {
       return null;
     }
 
-    const [filePath] = result.filePaths;
-    const extension = extname(filePath).toLowerCase();
-
-    if (!SUPPORTED_DOCUMENT_FILE_EXTENSIONS.has(extension)) {
-      throw new Error('Only JPG, JPEG, PNG, and PDF document files are supported.');
-    }
-
-    const type = extension === '.pdf' ? 'pdf' : 'image';
-    const mediaType = extension === '.png' ? 'image/png' : 'image/jpeg';
-    const previewDataUrl =
-      type === 'image'
-        ? `data:${mediaType};base64,${(await readFile(filePath)).toString('base64')}`
-        : null;
-    selectedDocumentFilePath = filePath;
-
-    return {
-      name: basename(filePath),
-      previewDataUrl,
-      type,
-    };
+    selectedDocumentFilePath = selection.filePath;
+    return selection.metadata;
   },
 );
 
@@ -100,20 +121,42 @@ ipcMain.handle(SELECT_TEMPLATE_CHANNEL, async (event): Promise<SelectedTemplate 
     throw new Error('Template selection must be requested by an application window.');
   }
 
-  const result = await dialog.showOpenDialog(requestingWindow, {
-    filters: [{ extensions: ['docx'], name: 'Word documents' }],
-    properties: ['openFile'],
-    title: 'Select DOCX template',
-  });
+  const selection = await selectRememberedFile(
+    getSettingsStore(),
+    'lastTemplateDirectory',
+    (defaultPath) => dialog.showOpenDialog(requestingWindow, {
+      ...(defaultPath ? { defaultPath } : {}),
+      filters: [{ extensions: ['docx'], name: 'Word documents' }],
+      properties: ['openFile'],
+      title: 'Select DOCX template',
+    }),
+    async (templatePath) => {
+      await validateReadableTemplatePath(templatePath);
+      return { filePath: templatePath, metadata: { name: basename(templatePath) } };
+    },
+  );
 
-  if (result.canceled || result.filePaths.length === 0) {
+  if (!selection) {
     return null;
   }
 
-  const [templatePath] = result.filePaths;
-  selectedTemplatePath = templatePath;
+  selectedTemplatePath = selection.filePath;
+  return selection.metadata;
+});
 
-  return { name: basename(templatePath) };
+ipcMain.handle(LIST_CUSTOM_FIELDS_CHANNEL, async (event) => {
+  requireApplicationWindow(event);
+  return listCustomFields(getSettingsStore());
+});
+
+ipcMain.handle(CREATE_CUSTOM_FIELD_CHANNEL, async (event, definition: unknown) => {
+  requireApplicationWindow(event);
+  return createCustomField(getSettingsStore(), definition);
+});
+
+ipcMain.handle(DELETE_CUSTOM_FIELD_CHANNEL, async (event, name: unknown) => {
+  requireApplicationWindow(event);
+  return deleteCustomField(getSettingsStore(), name);
 });
 
 ipcMain.handle(
@@ -139,7 +182,7 @@ ipcMain.handle(
 
 ipcMain.handle(
   GENERATE_DOCUMENT_CHANNEL,
-  async (event, data: unknown): Promise<GeneratedDocument | null> => {
+  async (event, data: unknown, customValues: unknown): Promise<GeneratedDocument | null> => {
     const requestingWindow = BrowserWindow.fromWebContents(event.sender);
 
     if (!requestingWindow || requestingWindow.isDestroyed()) {
@@ -154,7 +197,9 @@ ipcMain.handle(
       throw new Error('The personal form contains invalid data.');
     }
 
-    const document = await generateDocument(selectedTemplatePath, data);
+    const definitions = (await getSettingsStore().read()).customFields;
+    const values = validateCustomFieldValues(customValues, definitions);
+    const document = await generateDocument(selectedTemplatePath, data, values);
     const templateExtension = extname(selectedTemplatePath);
     const defaultName = `${basename(selectedTemplatePath, templateExtension)}-filled.docx`;
     const result = await dialog.showSaveDialog(requestingWindow, {
@@ -184,6 +229,19 @@ function getDevServerUrl(): string | undefined {
 
 function isDocumentType(value: unknown): value is DocumentType {
   return typeof value === 'string' && DOCUMENT_TYPES.includes(value as DocumentType);
+}
+
+function getSettingsStore(): AppSettingsStore {
+  settingsStore ??= new AppSettingsStore(join(app.getPath('userData'), 'document-filler-settings', 'settings.json'));
+  return settingsStore;
+}
+
+function requireApplicationWindow(event: IpcMainInvokeEvent): void {
+  const requestingWindow = BrowserWindow.fromWebContents(event.sender);
+
+  if (!requestingWindow || requestingWindow.isDestroyed()) {
+    throw new Error('Custom fields must be requested by an application window.');
+  }
 }
 
 function createWindow(): void {

@@ -125,6 +125,65 @@ input {
   }
 }
 
+.custom-field-dialog {
+  background: var(--tmt-color-surface);
+  border: 1px solid var(--tmt-color-border);
+  border-radius: 0.65rem;
+  color: var(--tmt-color-text);
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 1.2rem;
+  width: 100%;
+
+  &::backdrop {
+    background: var(--tmt-color-text);
+    opacity: 0.45;
+  }
+
+  form,
+  label {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  form {
+    gap: 0.9rem;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+
+  label span,
+  p {
+    color: var(--tmt-color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  input {
+    background: var(--tmt-color-surface);
+    border: 1px solid var(--tmt-color-border);
+    border-radius: 0.35rem;
+    color: var(--tmt-color-text);
+    padding: 0.5rem;
+
+    &:focus {
+      border-color: var(--tmt-color-primary);
+      outline: 2px solid var(--tmt-color-primary-soft);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 34rem) {
   .document-type__options {
     grid-template-columns: 1fr;

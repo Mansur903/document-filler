@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, ElementRef, signal, viewChild } from '@angular/core';
+import type { OnInit } from '@angular/core';
+import { FormControl, FormGroup, FormRecord, ReactiveFormsModule } from '@angular/forms';
 
 import type { PassportData, RecognizedDocumentData, ResidencePermitData } from './models/api.model';
 import type {
+  CustomFieldDefinition,
   DocumentType,
   GeneratedDocument,
   SelectedDocumentFile,
@@ -18,6 +20,11 @@ const DATE_FIELDS: ReadonlySet<RecognizedField> = new Set([
   'visaValidUntil',
 ]);
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const CUSTOM_FIELD_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+const RESERVED_CUSTOM_FIELD_NAMES = new Set([
+  ...Object.getOwnPropertyNames(Object.prototype).map((name) => name.toLowerCase()),
+  'prototype',
+]);
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,12 +33,24 @@ const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
   styleUrl: './app.scss',
   templateUrl: './app.html',
 })
-export class App {
+export class App implements OnInit {
+  protected readonly addFieldButton = viewChild<ElementRef<HTMLButtonElement>>('addFieldButton');
+  protected readonly createFieldDialog = viewChild<ElementRef<HTMLDialogElement>>('createFieldDialog');
+
+  protected readonly createFieldForm = new FormGroup({
+    label: new FormControl('', { nonNullable: true }),
+    name: new FormControl('', { nonNullable: true }),
+  });
+  protected readonly customFieldControls = new FormRecord<FormControl<string>>({});
+  protected readonly customFieldError = signal<string | null>(null);
+  protected readonly customFields = signal<readonly CustomFieldDefinition[]>([]);
   protected readonly documentType = signal<DocumentType>('passport');
   protected readonly generatedDocument = signal<GeneratedDocument | null>(null);
   protected readonly generationError = signal<string | null>(null);
   protected readonly isConfirmingReset = signal(false);
   protected readonly isGenerating = signal(false);
+  protected readonly isLoadingCustomFields = signal(true);
+  protected readonly isSavingCustomField = signal(false);
   protected readonly isRecognizing = signal(false);
   protected readonly isSelecting = signal(false);
   protected readonly isSelectingTemplate = signal(false);
@@ -64,6 +83,85 @@ export class App {
 
   protected get documentTypeLabel(): string {
     return this.documentType() === 'passport' ? 'Russian passport' : 'UAE Residence Permit';
+  }
+
+  /** Loads saved field definitions with empty session values. */
+  public ngOnInit(): void {
+    void this.loadCustomFields();
+  }
+
+  /** Opens the custom field creation dialog. */
+  protected onOpenCreateCustomField(): void {
+    if (this.isLoadingCustomFields()) {
+      return;
+    }
+
+    this.createFieldForm.reset();
+    this.customFieldError.set(null);
+    const dialog = this.createFieldDialog()?.nativeElement;
+
+    if (!dialog) {
+      return;
+    }
+
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+
+    queueMicrotask(() => dialog.querySelector<HTMLInputElement>('input')?.focus());
+  }
+
+  /** Closes the creation dialog without changing field definitions. */
+  protected onCancelCreateCustomField(): void {
+    this.closeCreateFieldDialog();
+    this.createFieldForm.reset();
+    this.customFieldError.set(null);
+  }
+
+  /** Saves a validated field definition. */
+  protected async onSaveCustomField(): Promise<void> {
+    const definition = this.createFieldForm.getRawValue();
+    const error = this.getCustomFieldValidationError(definition);
+
+    if (error) {
+      this.customFieldError.set(error);
+      return;
+    }
+
+    if (!window.electronAPI) {
+      this.customFieldError.set('Custom fields are available only in the desktop application.');
+      return;
+    }
+
+    this.isSavingCustomField.set(true);
+    this.customFieldError.set(null);
+
+    try {
+      const fields = await window.electronAPI.createCustomField(definition);
+      this.syncCustomFields(fields);
+      this.closeCreateFieldDialog();
+    } catch {
+      this.customFieldError.set('The custom field could not be saved. Please try again.');
+    } finally {
+      this.isSavingCustomField.set(false);
+    }
+  }
+
+  /** Removes a saved field and its current value. */
+  protected async onDeleteCustomField(name: string): Promise<void> {
+    if (!window.electronAPI) {
+      return;
+    }
+
+    this.customFieldError.set(null);
+
+    try {
+      this.syncCustomFields(await window.electronAPI.deleteCustomField(name));
+    } catch {
+      this.customFieldError.set('The custom field could not be deleted. Please try again.');
+    }
   }
 
   /** Selects the parser used for the next recognition. */
@@ -161,7 +259,10 @@ export class App {
     this.generationError.set(null);
 
     try {
-      const document = await window.electronAPI.generateDocument(this.personalForm.getRawValue());
+      const document = await window.electronAPI.generateDocument(
+        this.personalForm.getRawValue(),
+        this.customFieldControls.getRawValue(),
+      );
 
       if (document) {
         this.generatedDocument.set(document);
@@ -198,7 +299,76 @@ export class App {
 
   /** Returns whether the shared form contains at least one non-empty value. */
   protected hasFormValues(): boolean {
-    return Object.values(this.personalForm.getRawValue()).some((value) => value.trim() !== '');
+    return [...Object.values(this.personalForm.getRawValue()), ...Object.values(this.customFieldControls.getRawValue())]
+      .some((value) => value.trim() !== '');
+  }
+
+  private async loadCustomFields(): Promise<void> {
+    if (!window.electronAPI) {
+      this.isLoadingCustomFields.set(false);
+      return;
+    }
+
+    try {
+      this.syncCustomFields(await window.electronAPI.listCustomFields());
+    } catch {
+      this.customFieldError.set('Custom fields could not be loaded. Please restart the application.');
+    } finally {
+      this.isLoadingCustomFields.set(false);
+    }
+  }
+
+  private syncCustomFields(fields: readonly CustomFieldDefinition[]): void {
+    const names = new Set(fields.map((field) => field.name));
+
+    for (const name of Object.keys(this.customFieldControls.controls)) {
+      if (!names.has(name)) {
+        this.customFieldControls.removeControl(name);
+      }
+    }
+
+    for (const { name } of fields) {
+      if (!this.customFieldControls.contains(name)) {
+        this.customFieldControls.addControl(name, new FormControl('', { nonNullable: true }));
+      }
+    }
+
+    this.customFields.set(fields);
+  }
+
+  private getCustomFieldValidationError(definition: CustomFieldDefinition): string | null {
+    if (!definition.label.trim()) {
+      return 'Enter a field label.';
+    }
+
+    if (!CUSTOM_FIELD_NAME_PATTERN.test(definition.name)) {
+      return 'The placeholder name must start with a letter and contain only letters, numbers, or underscores.';
+    }
+
+    const name = definition.name.toLowerCase();
+    const standardNames = Object.keys(this.personalForm.controls).map((field) => field.toLowerCase());
+
+    if (
+      RESERVED_CUSTOM_FIELD_NAMES.has(name) ||
+      standardNames.includes(name) ||
+      this.customFields().some((field) => field.name.toLowerCase() === name)
+    ) {
+      return 'This placeholder name is already used or reserved.';
+    }
+
+    return null;
+  }
+
+  private closeCreateFieldDialog(): void {
+    const dialog = this.createFieldDialog()?.nativeElement;
+
+    if (dialog?.open && typeof dialog.close === 'function') {
+      dialog.close();
+    } else {
+      dialog?.removeAttribute('open');
+    }
+
+    this.addFieldButton()?.nativeElement.focus();
   }
 
   private mergeRecognizedData(documentData: RecognizedDocumentData): void {
@@ -230,6 +400,7 @@ export class App {
     this.generatedDocument.set(null);
     this.generationError.set(null);
     this.personalForm.reset();
+    this.customFieldControls.reset();
     this.recognitionError.set(null);
     this.selectedDocumentFile.set(null);
     this.selectionError.set(null);

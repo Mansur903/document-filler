@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import {
+  CREATE_CUSTOM_FIELD_CHANNEL,
+  DELETE_CUSTOM_FIELD_CHANNEL,
   GENERATE_DOCUMENT_CHANNEL,
+  LIST_CUSTOM_FIELDS_CHANNEL,
   RECOGNIZE_DOCUMENT_CHANNEL,
   RESET_USER_SESSION_CHANNEL,
   SELECT_DOCUMENT_FILE_CHANNEL,
@@ -10,10 +13,20 @@ import {
 import type { ElectronAPI } from './models/api.model';
 
 const electronAPI: ElectronAPI = {
-  generateDocument: (data) =>
-    ipcRenderer.invoke(GENERATE_DOCUMENT_CHANNEL, data) as ReturnType<
+  createCustomField: (definition) =>
+    ipcRenderer.invoke(CREATE_CUSTOM_FIELD_CHANNEL, definition) as ReturnType<
+      ElectronAPI['createCustomField']
+    >,
+  deleteCustomField: (name) =>
+    ipcRenderer.invoke(DELETE_CUSTOM_FIELD_CHANNEL, name) as ReturnType<
+      ElectronAPI['deleteCustomField']
+    >,
+  generateDocument: (data, customValues) =>
+    ipcRenderer.invoke(GENERATE_DOCUMENT_CHANNEL, data, customValues) as ReturnType<
       ElectronAPI['generateDocument']
     >,
+  listCustomFields: () =>
+    ipcRenderer.invoke(LIST_CUSTOM_FIELDS_CHANNEL) as ReturnType<ElectronAPI['listCustomFields']>,
   recognizeDocument: (documentType) =>
     ipcRenderer.invoke(RECOGNIZE_DOCUMENT_CHANNEL, documentType) as ReturnType<
       ElectronAPI['recognizeDocument']

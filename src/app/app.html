@@ -308,6 +308,84 @@
           </label>
         </fieldset>
       </form>
+
+      <div class="custom-fields__header">
+        <h3>Custom fields</h3>
+        <button
+          #addFieldButton
+          class="button button--secondary button--compact"
+          data-testid="add-custom-field"
+          type="button"
+          [disabled]="isLoadingCustomFields()"
+          (click)="onOpenCreateCustomField()"
+        >
+          Add field
+        </button>
+      </div>
+
+      @if (customFieldError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
+
+      <div class="personal-form custom-fields" [formGroup]="customFieldControls">
+        <fieldset>
+          <legend>Additional template values</legend>
+          @for (field of customFields(); track field.name) {
+            <div class="custom-fields__item">
+              <label class="personal-form__field">
+                <span>{{ field.label }} · {{ '{' + field.name + '}' }}</span>
+                <input
+                  type="text"
+                  [formControlName]="field.name"
+                  [attr.data-testid]="'custom-field-' + field.name"
+                  autocomplete="off"
+                />
+              </label>
+              <button
+                class="button button--danger button--compact"
+                type="button"
+                [attr.aria-label]="'Delete field ' + field.label"
+                [attr.data-testid]="'delete-custom-field-' + field.name"
+                (click)="onDeleteCustomField(field.name)"
+              >
+                Delete
+              </button>
+            </div>
+          } @empty {
+            <p class="custom-fields__empty">No custom fields yet.</p>
+          }
+        </fieldset>
+      </div>
     </section>
   </div>
+
+  <dialog
+    #createFieldDialog
+    class="custom-field-dialog"
+    aria-labelledby="create-field-title"
+    (cancel)="onCancelCreateCustomField()"
+    (keydown.escape)="onCancelCreateCustomField()"
+  >
+    <form [formGroup]="createFieldForm" (ngSubmit)="onSaveCustomField()">
+      <h2 id="create-field-title">Create custom field</h2>
+      <label>
+        <span>Field label</span>
+        <input type="text" formControlName="label" autocomplete="off" />
+      </label>
+      <label>
+        <span>Template name</span>
+        <input type="text" formControlName="name" autocomplete="off" />
+      </label>
+      <p>Use the template name without braces. For example, <code>extraPhone</code> inserts through <code>{{ '{extraPhone}' }}</code>.</p>
+      @if (customFieldError(); as error) {
+        <p class="message" role="alert">{{ error }}</p>
+      }
+      <div class="custom-field-dialog__actions">
+        <button class="button button--secondary" type="button" (click)="onCancelCreateCustomField()">Cancel</button>
+        <button class="button button--primary" type="submit" [disabled]="isSavingCustomField()">
+          {{ isSavingCustomField() ? 'Saving...' : 'Create field' }}
+        </button>
+      </div>
+    </form>
+  </dialog>
 </main>
