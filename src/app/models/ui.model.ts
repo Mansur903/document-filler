@@ -1,5 +1,10 @@
 export type DocumentFileType = 'image' | 'pdf';
-export type DocumentType = 'passport' | 'russianInternalPassport' | 'uaeResidencePermit';
+export type DocumentType =
+  | 'passport'
+  | 'russianBirthCertificate'
+  | 'russianInternalPassport'
+  | 'russianMarriageCertificate'
+  | 'uaeResidencePermit';
 
 export interface CustomFieldDefinition {
   readonly label: string;

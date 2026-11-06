@@ -1,7 +1,13 @@
 from typing import Literal, TypedDict
 
 
-DocumentType = Literal["passport", "russianInternalPassport", "uaeResidencePermit"]
+DocumentType = Literal[
+    "passport",
+    "russianBirthCertificate",
+    "russianInternalPassport",
+    "russianMarriageCertificate",
+    "uaeResidencePermit",
+]
 
 
 class OcrTextBlock(TypedDict):
@@ -43,3 +49,55 @@ class ResidencePermitData(TypedDict):
     residencepermitID: str | None
     visaID: str | None
     visaValidUntil: str | None
+
+
+class BirthCertificateData(TypedDict):
+    birthCertificateChildSurname: str | None
+    birthCertificateChildGivenName: str | None
+    birthCertificateChildPatronymic: str | None
+    birthCertificateChildDateOfBirth: str | None
+    birthCertificateChildPlaceOfBirth: str | None
+    birthCertificateFatherSurname: str | None
+    birthCertificateFatherGivenName: str | None
+    birthCertificateFatherPatronymic: str | None
+    birthCertificateFatherDateOfBirth: str | None
+    birthCertificateFatherCitizenship: str | None
+    birthCertificateFatherNationality: str | None
+    birthCertificateMotherSurname: str | None
+    birthCertificateMotherGivenName: str | None
+    birthCertificateMotherPatronymic: str | None
+    birthCertificateMotherDateOfBirth: str | None
+    birthCertificateMotherCitizenship: str | None
+    birthCertificateMotherNationality: str | None
+    birthCertificateRegistrationDate: str | None
+    birthCertificateRecordNumber: str | None
+    birthCertificateRegistryOffice: str | None
+    birthCertificateIssueDate: str | None
+    birthCertificateSeries: str | None
+    birthCertificateNumber: str | None
+
+
+class MarriageCertificateData(TypedDict):
+    marriageCertificateSpouse1SurnameBefore: str | None
+    marriageCertificateSpouse1GivenNameBefore: str | None
+    marriageCertificateSpouse1PatronymicBefore: str | None
+    marriageCertificateSpouse1DateOfBirth: str | None
+    marriageCertificateSpouse1PlaceOfBirth: str | None
+    marriageCertificateSpouse1Citizenship: str | None
+    marriageCertificateSpouse1Nationality: str | None
+    marriageCertificateSpouse1SurnameAfter: str | None
+    marriageCertificateSpouse2SurnameBefore: str | None
+    marriageCertificateSpouse2GivenNameBefore: str | None
+    marriageCertificateSpouse2PatronymicBefore: str | None
+    marriageCertificateSpouse2DateOfBirth: str | None
+    marriageCertificateSpouse2PlaceOfBirth: str | None
+    marriageCertificateSpouse2Citizenship: str | None
+    marriageCertificateSpouse2Nationality: str | None
+    marriageCertificateSpouse2SurnameAfter: str | None
+    marriageCertificateMarriageDate: str | None
+    marriageCertificateRecordDate: str | None
+    marriageCertificateRecordNumber: str | None
+    marriageCertificateRegistryOffice: str | None
+    marriageCertificateIssueDate: str | None
+    marriageCertificateSeries: str | None
+    marriageCertificateNumber: str | None

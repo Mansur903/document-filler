@@ -40,6 +40,28 @@ def passport_mrz() -> list[str]:
 
 
 class RecognizeDocumentTest(unittest.TestCase):
+    def test_routes_civil_certificates_and_ignores_unrelated_pages(self) -> None:
+        birth = _select_document_page(
+            [result(["Unrelated page"]), result([
+                "СВИДЕТЕЛЬСТВО О РОЖДЕНИИ", "Фамилия Петрова",
+                "Дата рождения 12 марта 2018 года",
+            ])],
+            "russianBirthCertificate",
+        )
+        marriage = _select_document_page(
+            [result(["Unrelated page"]), result([
+                "СВИДЕТЕЛЬСТВО О ЗАКЛЮЧЕНИИ БРАКА", "Он",
+                "Фамилия до заключения брака Иванов", "Она",
+                "Фамилия до заключения брака Смирнова",
+                "Дата заключения брака 14.07.2022",
+            ])],
+            "russianMarriageCertificate",
+        )
+        self.assertEqual(birth["birthCertificateChildSurname"], "Петрова")
+        self.assertEqual(birth["birthCertificateChildDateOfBirth"], "2018-03-12")
+        self.assertEqual(marriage["marriageCertificateSpouse1SurnameBefore"], "Иванов")
+        self.assertEqual(marriage["marriageCertificateMarriageDate"], "2022-07-14")
+
     def test_routes_internal_passport_without_changing_other_types(self) -> None:
         internal = _select_document_page(
             [result(["Фамилия", "ИВАНОВА", "Имя", "АННА"])],
@@ -90,6 +112,8 @@ class RecognizeDocumentTest(unittest.TestCase):
 
     def test_validates_type_and_png_extension(self) -> None:
         self.assertEqual(_validate_document_type("passport"), "passport")
+        self.assertEqual(_validate_document_type("russianBirthCertificate"), "russianBirthCertificate")
+        self.assertEqual(_validate_document_type("russianMarriageCertificate"), "russianMarriageCertificate")
 
         with self.assertRaisesRegex(ValueError, "document type"):
             _validate_document_type("unknown")

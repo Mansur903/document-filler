@@ -21,6 +21,8 @@ class OcrConfigTest(unittest.TestCase):
     def test_selects_document_specific_models(self) -> None:
         passport_profile = get_primary_profile("passport")
         internal_profile = get_primary_profile("russianInternalPassport")
+        birth_profile = get_primary_profile("russianBirthCertificate")
+        marriage_profile = get_primary_profile("russianMarriageCertificate")
         permit_profile = get_primary_profile("uaeResidencePermit")
 
         self.assertEqual(passport_profile.detection_model_name, DETECTION_MODEL_NAME)
@@ -29,6 +31,8 @@ class OcrConfigTest(unittest.TestCase):
             PASSPORT_RECOGNITION_MODEL_NAME,
         )
         self.assertIs(internal_profile, passport_profile)
+        self.assertIs(birth_profile, passport_profile)
+        self.assertIs(marriage_profile, passport_profile)
         self.assertEqual(
             permit_profile.recognition_model_name,
             ENGLISH_RECOGNITION_MODEL_NAME,

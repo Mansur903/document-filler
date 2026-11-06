@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { InternalPassportData } from '../models/api.model';
+import {
+  BIRTH_CERTIFICATE_DATA_FIELDS,
+  MARRIAGE_CERTIFICATE_DATA_FIELDS,
+} from '../models/certificate-fields';
 import { isRecognizedDocumentData } from './passport-ocr.service';
 
 const internalPassportData: InternalPassportData = {
@@ -57,4 +61,16 @@ test('retains the existing passport and permit result contracts', () => {
     isRecognizedDocumentData(Object.fromEntries(permitFields.map((field) => [field, null])), 'uaeResidencePermit'),
     true,
   );
+});
+
+test('accepts exact civil certificate contracts and rejects extra fields', () => {
+  const birth = Object.fromEntries(BIRTH_CERTIFICATE_DATA_FIELDS.map((field) => [field, null]));
+  const marriage = Object.fromEntries(MARRIAGE_CERTIFICATE_DATA_FIELDS.map((field) => [field, null]));
+
+  assert.equal(isRecognizedDocumentData(birth, 'russianBirthCertificate'), true);
+  assert.equal(isRecognizedDocumentData(marriage, 'russianMarriageCertificate'), true);
+  assert.equal(isRecognizedDocumentData(birth, 'russianMarriageCertificate'), false);
+  assert.equal(isRecognizedDocumentData(marriage, 'russianBirthCertificate'), false);
+  assert.equal(isRecognizedDocumentData({ ...birth, unexpected: 'value' }, 'russianBirthCertificate'), false);
+  assert.equal(isRecognizedDocumentData({ ...marriage, marriageCertificateRecordDate: 42 }, 'russianMarriageCertificate'), false);
 });

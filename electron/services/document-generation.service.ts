@@ -3,8 +3,14 @@ import { readFile } from 'node:fs/promises';
 import PizZip from 'pizzip';
 
 import type { PersonalFormData } from '../models/api.model';
+import {
+  BIRTH_CERTIFICATE_DATA_FIELDS,
+  MARRIAGE_CERTIFICATE_DATA_FIELDS,
+} from '../models/certificate-fields';
 
 export const PERSONAL_FORM_FIELDS: readonly (keyof PersonalFormData)[] = [
+  ...BIRTH_CERTIFICATE_DATA_FIELDS,
+  ...MARRIAGE_CERTIFICATE_DATA_FIELDS,
   'address',
   'authority',
   'currentNationality',
@@ -57,6 +63,11 @@ export async function generateDocument(
     dateOfIssue: formatDate(data.dateOfIssue),
     validUntil: formatDate(data.validUntil),
     visaValidUntil: formatDate(data.visaValidUntil),
+    ...Object.fromEntries(
+      [...BIRTH_CERTIFICATE_DATA_FIELDS, ...MARRIAGE_CERTIFICATE_DATA_FIELDS]
+        .filter((field) => field.endsWith('Date') || field.endsWith('DateOfBirth'))
+        .map((field) => [field, formatDate(data[field])]),
+    ),
   });
 
   return document.getZip().generate({ compression: 'DEFLATE', type: 'nodebuffer' });

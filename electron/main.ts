@@ -36,7 +36,9 @@ import { recognizeDocument } from './services/passport-ocr.service';
 const DEV_SERVER_URL_ARGUMENT = '--dev-server-url=';
 const DOCUMENT_TYPES: readonly DocumentType[] = [
   'passport',
+  'russianBirthCertificate',
   'russianInternalPassport',
+  'russianMarriageCertificate',
   'uaeResidencePermit',
 ];
 const SUPPORTED_DOCUMENT_FILE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.pdf', '.png']);

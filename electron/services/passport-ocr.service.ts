@@ -4,11 +4,17 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import type {
+  BirthCertificateData,
   InternalPassportData,
+  MarriageCertificateData,
   PassportData,
   RecognizedDocumentData,
   ResidencePermitData,
 } from '../models/api.model';
+import {
+  BIRTH_CERTIFICATE_DATA_FIELDS,
+  MARRIAGE_CERTIFICATE_DATA_FIELDS,
+} from '../models/certificate-fields';
 import type { DocumentType } from '../models/ui.model';
 
 const OCR_RESULT_PREFIX = 'OCR_RESULT:';
@@ -108,7 +114,11 @@ export function isRecognizedDocumentData(
     ? PASSPORT_DATA_FIELDS
     : documentType === 'russianInternalPassport'
       ? INTERNAL_PASSPORT_DATA_FIELDS
-      : RESIDENCE_PERMIT_DATA_FIELDS;
+      : documentType === 'russianBirthCertificate'
+        ? BIRTH_CERTIFICATE_DATA_FIELDS satisfies readonly (keyof BirthCertificateData)[]
+        : documentType === 'russianMarriageCertificate'
+          ? MARRIAGE_CERTIFICATE_DATA_FIELDS satisfies readonly (keyof MarriageCertificateData)[]
+          : RESIDENCE_PERMIT_DATA_FIELDS;
   const data = value as Record<string, unknown>;
 
   return Object.keys(data).length === fields.length && fields.every((field) => {

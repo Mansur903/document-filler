@@ -3,6 +3,14 @@ import type { OnInit } from '@angular/core';
 import { FormControl, FormGroup, FormRecord, ReactiveFormsModule } from '@angular/forms';
 
 import type { InternalPassportData, PassportData, RecognizedDocumentData, ResidencePermitData } from './models/api.model';
+import {
+  BIRTH_CERTIFICATE_FIELDS,
+  BIRTH_CERTIFICATE_GROUPS,
+  CERTIFICATE_FIELDS,
+  MARRIAGE_CERTIFICATE_FIELDS,
+  MARRIAGE_CERTIFICATE_GROUPS,
+} from './models/certificate-fields';
+import type { CertificateField } from './models/certificate-fields';
 import type {
   CustomFieldDefinition,
   DocumentType,
@@ -11,13 +19,18 @@ import type {
   SelectedTemplate,
 } from './models/ui.model';
 
-type RecognizedField = keyof PassportData | keyof InternalPassportData | keyof ResidencePermitData;
+type RecognizedField =
+  | keyof PassportData
+  | keyof InternalPassportData
+  | keyof ResidencePermitData
+  | CertificateField;
 
 const DATE_FIELDS: ReadonlySet<RecognizedField> = new Set([
   'dateOfBirth',
   'dateOfIssue',
   'validUntil',
   'visaValidUntil',
+  ...CERTIFICATE_FIELDS.filter((field) => 'date' in field && field.date).map((field) => field.key),
 ]);
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CUSTOM_FIELD_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -25,6 +38,12 @@ const RESERVED_CUSTOM_FIELD_NAMES = new Set([
   ...Object.getOwnPropertyNames(Object.prototype).map((name) => name.toLowerCase()),
   'prototype',
 ]);
+
+function createCertificateControls(): Record<CertificateField, FormControl<string>> {
+  return Object.fromEntries(
+    CERTIFICATE_FIELDS.map((field) => [field.key, new FormControl('', { nonNullable: true })]),
+  ) as Record<CertificateField, FormControl<string>>;
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,6 +60,9 @@ export class App implements OnInit {
     label: new FormControl('', { nonNullable: true }),
     name: new FormControl('', { nonNullable: true }),
   });
+  protected readonly birthCertificateExpanded = signal(false);
+  protected readonly birthCertificateFields = BIRTH_CERTIFICATE_FIELDS;
+  protected readonly birthCertificateGroups = BIRTH_CERTIFICATE_GROUPS;
   protected readonly customFieldControls = new FormRecord<FormControl<string>>({});
   protected readonly customFieldError = signal<string | null>(null);
   protected readonly customFields = signal<readonly CustomFieldDefinition[]>([]);
@@ -54,6 +76,9 @@ export class App implements OnInit {
   protected readonly isRecognizing = signal(false);
   protected readonly isSelecting = signal(false);
   protected readonly isSelectingTemplate = signal(false);
+  protected readonly marriageCertificateExpanded = signal(false);
+  protected readonly marriageCertificateFields = MARRIAGE_CERTIFICATE_FIELDS;
+  protected readonly marriageCertificateGroups = MARRIAGE_CERTIFICATE_GROUPS;
   protected readonly personalForm = new FormGroup({
     address: new FormControl('', { nonNullable: true }),
     authority: new FormControl('', { nonNullable: true }),
@@ -78,6 +103,7 @@ export class App implements OnInit {
     validUntil: new FormControl('', { nonNullable: true }),
     visaID: new FormControl('', { nonNullable: true }),
     visaValidUntil: new FormControl('', { nonNullable: true }),
+    ...createCertificateControls(),
   });
   protected readonly recognitionError = signal<string | null>(null);
   protected readonly selectedDocumentFile = signal<SelectedDocumentFile | null>(null);
@@ -91,6 +117,10 @@ export class App implements OnInit {
         return 'Russian Foreign Passport';
       case 'russianInternalPassport':
         return 'Russian Internal Passport';
+      case 'russianBirthCertificate':
+        return 'Russian Birth Certificate';
+      case 'russianMarriageCertificate':
+        return 'Russian Marriage Certificate';
       case 'uaeResidencePermit':
         return 'UAE Residence Permit';
     }
@@ -221,6 +251,11 @@ export class App implements OnInit {
     try {
       const documentData = await window.electronAPI.recognizeDocument(this.documentType());
       this.mergeRecognizedData(documentData);
+      if (this.documentType() === 'russianBirthCertificate') {
+        this.birthCertificateExpanded.set(true);
+      } else if (this.documentType() === 'russianMarriageCertificate') {
+        this.marriageCertificateExpanded.set(true);
+      }
       this.generatedDocument.set(null);
       this.generationError.set(null);
     } catch {
@@ -312,6 +347,19 @@ export class App implements OnInit {
   protected hasFormValues(): boolean {
     return [...Object.values(this.personalForm.getRawValue()), ...Object.values(this.customFieldControls.getRawValue())]
       .some((value) => value.trim() !== '');
+  }
+
+  /** Toggles a certificate section without changing its form values. */
+  protected onToggleCertificate(documentType: 'russianBirthCertificate' | 'russianMarriageCertificate'): void {
+    const expanded = documentType === 'russianBirthCertificate'
+      ? this.birthCertificateExpanded
+      : this.marriageCertificateExpanded;
+    expanded.update((value) => !value);
+  }
+
+  /** Counts non-empty fields in a certificate section. */
+  protected filledCertificateFields(fields: readonly { readonly key: CertificateField }[]): number {
+    return fields.filter((field) => this.personalForm.controls[field.key].value.trim() !== '').length;
   }
 
   private async loadCustomFields(): Promise<void> {
@@ -408,9 +456,11 @@ export class App implements OnInit {
     }
 
     this.documentType.set('passport');
+    this.birthCertificateExpanded.set(false);
     this.generatedDocument.set(null);
     this.generationError.set(null);
     this.personalForm.reset();
+    this.marriageCertificateExpanded.set(false);
     this.customFieldControls.reset();
     this.recognitionError.set(null);
     this.selectedDocumentFile.set(null);

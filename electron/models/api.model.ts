@@ -5,6 +5,7 @@ import type {
   SelectedDocumentFile,
   SelectedTemplate,
 } from './ui.model';
+import type { BirthCertificateField, MarriageCertificateField } from './certificate-fields';
 
 export interface ElectronAPI {
   createCustomField(definition: CustomFieldDefinition): Promise<readonly CustomFieldDefinition[]>;
@@ -56,9 +57,17 @@ export interface ResidencePermitData {
   readonly visaValidUntil: string | null;
 }
 
-export type RecognizedDocumentData = PassportData | InternalPassportData | ResidencePermitData;
+export type BirthCertificateData = Readonly<Record<BirthCertificateField, string | null>>;
+export type MarriageCertificateData = Readonly<Record<MarriageCertificateField, string | null>>;
 
-export interface PersonalFormData {
+export type RecognizedDocumentData =
+  | PassportData
+  | InternalPassportData
+  | ResidencePermitData
+  | BirthCertificateData
+  | MarriageCertificateData;
+
+export interface PersonalFormData extends Readonly<Record<BirthCertificateField | MarriageCertificateField, string>> {
   readonly address: string;
   readonly authority: string;
   readonly currentNationality: string;

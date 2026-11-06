@@ -1,7 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 
-import type { ElectronAPI, InternalPassportData, PassportData, ResidencePermitData } from './models/api.model';
+import type {
+  BirthCertificateData,
+  ElectronAPI,
+  InternalPassportData,
+  MarriageCertificateData,
+  PassportData,
+  ResidencePermitData,
+} from './models/api.model';
+import { BIRTH_CERTIFICATE_FIELDS, MARRIAGE_CERTIFICATE_FIELDS } from './models/certificate-fields';
 import { App } from './app';
 
 const passportData: PassportData = {
@@ -37,6 +45,18 @@ const internalPassportData: InternalPassportData = {
   subdivisionCode: '123-456',
   surname: 'Ivanov',
 };
+const birthCertificateData = {
+  ...Object.fromEntries(BIRTH_CERTIFICATE_FIELDS.map((field) => [field.key, null])),
+  birthCertificateChildSurname: 'Петрова',
+  birthCertificateChildDateOfBirth: '2018-03-12',
+  birthCertificateFatherSurname: 'Петров',
+} as BirthCertificateData;
+const marriageCertificateData = {
+  ...Object.fromEntries(MARRIAGE_CERTIFICATE_FIELDS.map((field) => [field.key, null])),
+  marriageCertificateSpouse1SurnameBefore: 'Иванов',
+  marriageCertificateSpouse1SurnameAfter: 'Иванов',
+  marriageCertificateMarriageDate: '2022-07-14',
+} as MarriageCertificateData;
 
 describe('App', () => {
   let electronAPI: ElectronAPI;
@@ -68,9 +88,13 @@ describe('App', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Document Filler');
-    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(23);
+    expect(compiled.querySelectorAll('.personal-form input')).toHaveLength(69);
     expect(compiled.textContent).toContain('Russian Foreign Passport');
     expect(compiled.textContent).toContain('Russian Internal Passport');
+    expect(compiled.textContent).toContain('Russian Birth Certificate');
+    expect(compiled.textContent).toContain('Russian Marriage Certificate');
+    expect(compiled.querySelector('[data-testid="birth-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(compiled.querySelector('[data-testid="marriage-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('false');
     expect(input(compiled, 'authority').value).toBe('');
     expect(input(compiled, 'patronymic').value).toBe('');
     expect(input(compiled, 'internalPassportSeries').value).toBe('');
@@ -83,6 +107,87 @@ describe('App', () => {
       expect(input(compiled, field).type).toBe('text');
       expect(input(compiled, field).getAttribute('placeholder')).toBeNull();
     }
+  });
+
+  it('keeps certificate values while sections close and fills both in either order', async () => {
+    vi.mocked(electronAPI.selectDocumentFile).mockResolvedValue({
+      name: 'certificate.png', previewDataUrl: null, type: 'image',
+    });
+    vi.mocked(electronAPI.recognizeDocument).mockImplementation(async (documentType) =>
+      documentType === 'russianBirthCertificate' ? birthCertificateData : marriageCertificateData,
+    );
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    await click(fixture, '[data-testid="select-document"]');
+
+    input(compiled, 'input[value="russianMarriageCertificate"]').click();
+    await click(fixture, '[data-testid="recognize-document"]');
+    expect(input(compiled, 'marriageCertificateMarriageDate').value).toBe('14.07.2022');
+    expect(compiled.querySelector('[data-testid="marriage-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('true');
+    setInput(input(compiled, 'marriageCertificateSpouse1SurnameAfter'), 'Manual');
+    await click(fixture, '[data-testid="marriage-certificate-toggle"]');
+    expect(compiled.querySelector('[data-testid="marriage-certificate-toggle"]')?.textContent).toContain('3 of 23');
+
+    input(compiled, 'input[value="russianBirthCertificate"]').click();
+    await click(fixture, '[data-testid="recognize-document"]');
+    expect(input(compiled, 'birthCertificateChildDateOfBirth').value).toBe('12.03.2018');
+    expect(input(compiled, 'marriageCertificateSpouse1SurnameAfter').value).toBe('Manual');
+    expect(compiled.querySelector('[data-testid="birth-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('true');
+    expect(compiled.querySelector('[data-testid="marriage-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('false');
+
+    await click(fixture, '[data-testid="new-user"]');
+    await click(fixture, '[data-testid="confirm-new-user"]');
+    expect(input(compiled, 'birthCertificateChildSurname').value).toBe('');
+    expect(input(compiled, 'marriageCertificateSpouse1SurnameAfter').value).toBe('');
+  });
+
+  it('opens birth then marriage without replacing manual values and leaves data on OCR error', async () => {
+    vi.mocked(electronAPI.selectDocumentFile).mockResolvedValue({
+      name: 'certificate.pdf', previewDataUrl: null, type: 'pdf',
+    });
+    vi.mocked(electronAPI.recognizeDocument).mockImplementation(async (documentType) =>
+      documentType === 'russianBirthCertificate' ? birthCertificateData : marriageCertificateData,
+    );
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const birthToggle = compiled.querySelector<HTMLButtonElement>('[data-testid="birth-certificate-toggle"]')!;
+    expect(birthToggle.tagName).toBe('BUTTON');
+    expect(birthToggle.type).toBe('button');
+    expect(birthToggle.tabIndex).toBeGreaterThanOrEqual(0);
+    await click(fixture, '[data-testid="select-document"]');
+    input(compiled, 'input[value="russianBirthCertificate"]').click();
+    await click(fixture, '[data-testid="recognize-document"]');
+    setInput(input(compiled, 'birthCertificateChildSurname'), 'Manual child');
+
+    input(compiled, 'input[value="russianMarriageCertificate"]').click();
+    await click(fixture, '[data-testid="recognize-document"]');
+    expect(input(compiled, 'birthCertificateChildSurname').value).toBe('Manual child');
+    expect(input(compiled, 'marriageCertificateMarriageDate').value).toBe('14.07.2022');
+    expect(birthToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(compiled.querySelector('[data-testid="marriage-certificate-toggle"]')?.getAttribute('aria-expanded')).toBe('true');
+
+    vi.mocked(electronAPI.recognizeDocument).mockRejectedValue(new Error('OCR failure'));
+    await click(fixture, '[data-testid="recognize-document"]');
+    expect(input(compiled, 'birthCertificateChildSurname').value).toBe('Manual child');
+    expect(input(compiled, 'marriageCertificateMarriageDate').value).toBe('14.07.2022');
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain('could not be recognized');
+  });
+
+  it('rejects custom field names used by certificates', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    await click(fixture, '[data-testid="add-custom-field"]');
+    const dialog = compiled.querySelector<HTMLDialogElement>('.custom-field-dialog')!;
+    setInput(input(dialog, 'label'), 'Collision');
+    setInput(input(dialog, 'name'), 'birthCertificateChildSurname');
+    await click(fixture, '.custom-field-dialog button[type="submit"]');
+    expect(dialog.textContent).toContain('already used');
+    expect(electronAPI.createCustomField).not.toHaveBeenCalled();
   });
 
   it('shows a PNG preview returned by the Electron API', async () => {
@@ -418,7 +523,7 @@ async function click(fixture: ComponentFixture<App>, selector: string): Promise<
 function input(root: HTMLElement, nameOrSelector: string): HTMLInputElement {
   const selector = nameOrSelector.startsWith('input[')
     ? nameOrSelector
-    : `input[formControlName="${nameOrSelector}"]`;
+    : `input[formControlName="${nameOrSelector}"], input[data-testid="${nameOrSelector}"]`;
   const element = root.querySelector<HTMLInputElement>(selector);
 
   if (!element) {

@@ -7,9 +7,18 @@ import test from 'node:test';
 import PizZip from 'pizzip';
 
 import type { PersonalFormData } from '../models/api.model';
+import {
+  BIRTH_CERTIFICATE_DATA_FIELDS,
+  MARRIAGE_CERTIFICATE_DATA_FIELDS,
+} from '../models/certificate-fields';
+import type { BirthCertificateField, MarriageCertificateField } from '../models/certificate-fields';
 import { generateDocument, isPersonalFormData } from './document-generation.service';
 
 const personalData: PersonalFormData = {
+  ...Object.fromEntries(
+    [...BIRTH_CERTIFICATE_DATA_FIELDS, ...MARRIAGE_CERTIFICATE_DATA_FIELDS]
+      .map((field) => [field, '']),
+  ) as Record<BirthCertificateField | MarriageCertificateField, string>,
   address: 'Example address',
   authority: 'FMS 12345',
   currentNationality: 'RUS',
@@ -33,6 +42,10 @@ const personalData: PersonalFormData = {
   validUntil: '2030-01-03',
   visaID: '201/2024/3821949',
   visaValidUntil: '2027-08-28',
+  birthCertificateChildSurname: 'Petrova',
+  birthCertificateChildDateOfBirth: '2018-03-12',
+  marriageCertificateSpouse1SurnameAfter: 'Ivanov',
+  marriageCertificateRecordDate: '2022-07-15',
 };
 
 test('generates all personal placeholders and formats both validity dates', async () => {
@@ -68,6 +81,30 @@ test('validates the complete personal form payload', () => {
   assert.equal(isPersonalFormData(dataWithoutAuthority), false);
   assert.equal(isPersonalFormData({ ...personalData, visaValidUntil: null }), false);
   assert.equal(isPersonalFormData({ surname: 'Ivanov' }), false);
+  const dataWithoutCertificateField: Record<string, unknown> = { ...personalData };
+  delete dataWithoutCertificateField['birthCertificateChildSurname'];
+  assert.equal(isPersonalFormData(dataWithoutCertificateField), false);
+});
+
+test('renders certificate values and formats their dates', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'document-filler-'));
+  const templatePath = join(directory, 'certificate-template.docx');
+
+  try {
+    await writeFile(templatePath, createTemplate(
+      '{birthCertificateChildSurname}|{birthCertificateChildDateOfBirth}|{marriageCertificateSpouse1SurnameAfter}|{marriageCertificateRecordDate}|{marriageCertificateSpouse2Nationality}',
+    ));
+    const output = await generateDocument(templatePath, personalData);
+    const documentXml = new PizZip(output).file('word/document.xml')?.asText();
+    assert.ok(documentXml);
+    assert.match(documentXml, /Petrova/);
+    assert.match(documentXml, /12\.03\.2018/);
+    assert.match(documentXml, /Ivanov/);
+    assert.match(documentXml, /15\.07\.2022/);
+    assert.doesNotMatch(documentXml, /\{marriageCertificateSpouse2Nationality\}/);
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
 });
 
 test('renders custom values, leaves deleted placeholders, and keeps date formatting', async () => {

@@ -2,7 +2,7 @@
   <header class="document-page__header">
     <div>
       <h1>Document Filler</h1>
-      <p>Collect passport and UAE Residence Permit data, then fill a DOCX template.</p>
+      <p>Collect document data locally, then fill a DOCX template.</p>
     </div>
   </header>
 
@@ -38,6 +38,26 @@
                 (change)="onDocumentTypeChange('russianInternalPassport')"
               />
               <span>Russian Internal Passport</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="documentType"
+                value="russianBirthCertificate"
+                [checked]="documentType() === 'russianBirthCertificate'"
+                (change)="onDocumentTypeChange('russianBirthCertificate')"
+              />
+              <span>Russian Birth Certificate</span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="documentType"
+                value="russianMarriageCertificate"
+                [checked]="documentType() === 'russianMarriageCertificate'"
+                (change)="onDocumentTypeChange('russianMarriageCertificate')"
+              />
+              <span>Russian Marriage Certificate</span>
             </label>
             <label>
               <input
@@ -333,6 +353,90 @@
             <input type="text" formControlName="address" autocomplete="street-address" />
           </label>
         </fieldset>
+
+        <section class="certificate-accordion" aria-labelledby="birth-certificate-title">
+          <h3 id="birth-certificate-title" class="certificate-accordion__heading">
+            <button
+              class="certificate-accordion__toggle"
+              data-testid="birth-certificate-toggle"
+              type="button"
+              [attr.aria-expanded]="birthCertificateExpanded()"
+              aria-controls="birth-certificate-fields"
+              (click)="onToggleCertificate('russianBirthCertificate')"
+            >
+              <span>Russian Birth Certificate</span>
+              <span class="certificate-accordion__summary">
+                {{ filledCertificateFields(birthCertificateFields) }} of {{ birthCertificateFields.length }} fields filled
+              </span>
+              <span class="certificate-accordion__chevron" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <path d="m4 7 6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+          </h3>
+          <div id="birth-certificate-fields" class="certificate-accordion__content" [hidden]="!birthCertificateExpanded()">
+            @for (group of birthCertificateGroups; track group.title) {
+              <fieldset>
+                <legend>{{ group.title }}</legend>
+                @for (field of group.fields; track field.key) {
+                  <label class="personal-form__field" [class.personal-form__field--wide]="field.key.endsWith('PlaceOfBirth') || field.key.endsWith('RegistryOffice')">
+                    <span>{{ field.label }}</span>
+                    <input
+                      type="text"
+                      [formControlName]="field.key"
+                      [attr.data-testid]="field.key"
+                      [attr.inputmode]="field.key.includes('Date') || field.key.endsWith('Number') ? 'numeric' : null"
+                      autocomplete="off"
+                    />
+                  </label>
+                }
+              </fieldset>
+            }
+          </div>
+        </section>
+
+        <section class="certificate-accordion" aria-labelledby="marriage-certificate-title">
+          <h3 id="marriage-certificate-title" class="certificate-accordion__heading">
+            <button
+              class="certificate-accordion__toggle"
+              data-testid="marriage-certificate-toggle"
+              type="button"
+              [attr.aria-expanded]="marriageCertificateExpanded()"
+              aria-controls="marriage-certificate-fields"
+              (click)="onToggleCertificate('russianMarriageCertificate')"
+            >
+              <span>Russian Marriage Certificate</span>
+              <span class="certificate-accordion__summary">
+                {{ filledCertificateFields(marriageCertificateFields) }} of {{ marriageCertificateFields.length }} fields filled
+              </span>
+              <span class="certificate-accordion__chevron" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false">
+                  <path d="m4 7 6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+          </h3>
+          <div id="marriage-certificate-fields" class="certificate-accordion__content" [hidden]="!marriageCertificateExpanded()">
+            @for (group of marriageCertificateGroups; track group.title) {
+              <fieldset>
+                <legend>{{ group.title }}</legend>
+                @for (field of group.fields; track field.key) {
+                  <label class="personal-form__field" [class.personal-form__field--wide]="field.key.endsWith('PlaceOfBirth') || field.key.endsWith('RegistryOffice')">
+                    <span>{{ field.label }}</span>
+                    <input
+                      type="text"
+                      [formControlName]="field.key"
+                      [attr.data-testid]="field.key"
+                      [attr.inputmode]="field.key.includes('Date') || field.key.endsWith('Number') ? 'numeric' : null"
+                      autocomplete="off"
+                    />
+                  </label>
+                }
+              </fieldset>
+            }
+          </div>
+        </section>
       </form>
 
       <div class="custom-fields__header">
